@@ -1,0 +1,173 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DeviceType {
+  iphone
+  ipad
+}
+
+enum DeviceStatus {
+  deployed
+  standby
+  broken
+  testing
+}
+
+enum AccountStatus {
+  active
+  locked
+  disabled
+}
+
+enum HostStatus {
+  online
+  offline
+  maintenance
+}
+
+enum MaintenanceEventType {
+  battery_replacement
+  screen_repair
+  other
+}
+
+enum HealthStatus {
+  healthy
+  warning
+  error
+}
+
+model Device {
+  id                String   @id @default(uuid())
+  internalSerial    String   @unique @map("internal_serial")
+  deviceId          Int?     @unique @map("device_id")
+  staticIp          String?  @map("static_ip")
+  deviceType        DeviceType @map("device_type")
+  model             String?
+  iosVersion        String?  @map("ios_version")
+  currentStatus     DeviceStatus @default(standby) @map("current_status")
+  currentHostId     String?  @map("current_host_id")
+  currentAccountId  String?  @map("current_account_id")
+  notes             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  currentHost       Host?    @relation("DeviceCurrentHost", fields: [currentHostId], references: [id])
+  currentAccount    Account? @relation("DeviceCurrentAccount", fields: [currentAccountId], references: [id])
+
+  statusHistory     DeviceStatusHistory[]
+  accountHistory    DeviceAccountHistory[]
+  hostHistory       DeviceHostHistory[]
+  maintenanceEvents MaintenanceEvent[]
+  healthChecks      HealthCheck[]
+
+  @@map("devices")
+}
+
+model Account {
+  id           String   @id @default(uuid())
+  appleId      String   @unique @map("apple_id")
+  country      String?
+  status       AccountStatus @default(active)
+  password     String?
+  twoFactor    String? @map("two_factor")
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  currentDevices Device[] @relation("DeviceCurrentAccount")
+  deviceHistory  DeviceAccountHistory[]
+
+  @@map("accounts")
+}
+
+model Host {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  hostname     String?
+  status       HostStatus @default(offline)
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  currentDevices Device[] @relation("DeviceCurrentHost")
+  deviceHistory  DeviceHostHistory[]
+
+  @@map("hosts")
+}
+
+model DeviceStatusHistory {
+  id         String   @id @default(uuid())
+  deviceId   String   @map("device_id")
+  status     DeviceStatus
+  changedAt  DateTime @default(now()) @map("changed_at")
+  changedBy  String?  @map("changed_by")
+  notes      String?
+
+  device     Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("device_status_history")
+}
+
+model DeviceAccountHistory {
+  id           String    @id @default(uuid())
+  deviceId     String    @map("device_id")
+  accountId    String    @map("account_id")
+  assignedAt   DateTime  @default(now()) @map("assigned_at")
+  unassignedAt DateTime? @map("unassigned_at")
+  notes        String?
+
+  device       Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  account      Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@map("device_account_history")
+}
+
+model DeviceHostHistory {
+  id           String    @id @default(uuid())
+  deviceId     String    @map("device_id")
+  hostId       String    @map("host_id")
+  deployedAt   DateTime  @default(now()) @map("deployed_at")
+  undeployedAt DateTime? @map("undeployed_at")
+  notes        String?
+
+  device       Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  host         Host      @relation(fields: [hostId], references: [id], onDelete: Cascade)
+
+  @@map("device_host_history")
+}
+
+model MaintenanceEvent {
+  id          String   @id @default(uuid())
+  deviceId    String   @map("device_id")
+  eventType   MaintenanceEventType @map("event_type")
+  description String
+  performedAt DateTime @default(now()) @map("performed_at")
+  performedBy String?  @map("performed_by")
+  cost        Float?
+
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("maintenance_events")
+}
+
+model HealthCheck {
+  id           String   @id @default(uuid())
+  deviceId     String   @map("device_id")
+  status       HealthStatus
+  cpuUsage     Float?   @map("cpu_usage")
+  memoryUsage  Float?   @map("memory_usage")
+  batteryLevel Int?     @map("battery_level")
+  errorMessage String?  @map("error_message")
+  checkedAt    DateTime @default(now()) @map("checked_at")
+
+  device       Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("health_checks")
+}

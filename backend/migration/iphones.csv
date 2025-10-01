@@ -1,0 +1,68 @@
+Phone ID,Email for Apple ID (to activate phone),Password,iOS Version,2 Factor Auth,Email for iTunes,Country,
+1,ios1-research-2@42matters.com,Space2020,14.4,,,CN,
+2,ios1-research-9@42matters.com,Space2020,14.7.1,,,US,
+3,ios1-research-2@42matters.com,Space2020,14.4,,,CN,Previously 123
+4,ios1-research-8@42matters.com,Space2020,16.7.1,,,US,
+5,ios1-research-3@42matters.com,Space2025,14.4,,,JP,Broken (no more firmware)
+6,ios1-research-3@42matters.com,Space2025,16.2,,,JP,
+7,ios1-research@42matters.com,Space2020,16.2,,,JP,Previously 125
+8,ios1-research-7@42matters.com,Space2020,14.7.1,,,US,Before connected as ios1-research-20@42matters.com
+9,ios1-research-8@42matters.com,Space2020,16.7.10,,,US,
+10,ios1-research-20@42matters.com,Space2020,16.2,,,US,Previously 122
+11,ios-security-research+1@42matters.com,Space2020,16.2,,,GB,
+12,ios-security-research-45@42matters.com,Space2020,16.2,,,US,Before 130
+13,ios-security-research-46@42matters.com,Space2020,14.7.1,,,US,
+14,ios1-research-10@42matters.com,Space2020,13.5.1,,,DE,previously device 102
+15,ios-security-research-41@42matters.com,Space2020,16.2,,,DE,Previously 124
+16,ios1-security-16@42matters.com,Space2020,13.4.1,,,DE,previously device 132
+17,ios1-research-17@42matters.com,Space2020,16.2,,,US,
+18,ios1-research-13@42matters.com,Space2020,16.2,,,US,
+19,ios1-research-14@42matters.com,Space2020,16.2,,,US,New
+20,ios1-research-20@42matters.com,Space2020,14.7.1,,,US,iOS 14
+21,ios1-research-21@42matters.com,Space2020,16.2,,,US,
+22,ios1-research-22@42matters.com,Space2020,13.2.2,,,US,
+23,ios1-research-23@42matters.com,Space2020,16.2,,,US,Previously 128
+24,ios1-research-24@42matters.com,Space2020,14,,,US,
+25,ios1-research-2@42matters.com,Space2020,14.2,,,CN,
+26,ios1-research-26@42matters.com,Space2020,16.7,,,IN,
+27,ios1-research-27@42matters.com,Space2020,13.4.1,,,IN,
+28,ios1-research-28@42matters.com,Space2020,16.2,,,IN,
+29,ios1-research-29@42matters.com,Space2020,16.7.1,,,GB,
+30,ios1-research-30@42matters.com,Space2020,13.3,,,GB,
+31,ios1-research-31@42matters.com,Space2025,16.2,,,CA,
+32,ios1-research-32@42matters.com,Space2020,16.2,,,CA,
+33,ios1-research-33@42matters.com,Space2020,16.2,,,CA,
+34,ios1-research-34@42matters.com,Space2020,15,,,CA,
+35,ios1-research-35@42matters.com,Space2020,16.2,,,GB,
+36,ios1-research-36@42matters.com,Space2020,14.7.1,,,AU,
+37,ios1-research-37@42matters.com,Space2020,15.8.3,,,AU,
+38,ios1-research-37@42matters.com,Space2020,16.2,,,AU,
+39,ios1-research-36@42matters.com,Space2020,15,,,AU,
+40,ios1-research-28@42matters.com,Space2020,14.7.1,,,IN,
+41,ios-research-41@42matters.com,Space2020,14.2,,,FR,
+42,ios-research-41@42matters.com,Space2020,14.5.1,,,FR,
+43,ios1-security-16@42matters.com,Space2020,16.7.1,,,DE,
+44,ios-research-44@42matters.com,Space2020,13.6,,,FR,
+45,ios1-research-10@42matters.com,Space2020,15,,,DE,
+46,ios-research-46@42matters.com,Space2020,16.2,,,IT,Previously 129
+47,ios-research-46@42matters.com,Space2020,16.2,,,IT,
+48,ios-security-research-41@42matters.com,Space2020,16.2,,,DE,Previously 121
+49,ios-research-48@42matters.com,Space2020,16.2,,,ES,
+50,ios-research-50@42matters.com,Space2020,16.7.1,,,RU,
+51,ios1-research-21@42matters.com,Space2020,14.7.1,,,US,Temporarily ios1-research-9@42matters.com on App Store only
+52,ios-research-50@42matters.com,Space2020,14.4.2,,,RU,
+53,ios1-research@42matters.com,Space2020,16.2,,,KR,
+54,ios1-research-27@42matters.com,Space2020,16.2,,,IN,Previously 126
+55,ios-research-49@42matters.com,Space2020,16.2,,,US,Converted from BR to US given required SSN
+56,ios-research-49@42matters.com,Space2020,16.2,,,US,Converted from BR to US given required SSN
+57,ios-research-52@42matters.com,Space2020,14.4.2,41772029758,,IN,
+58,ios-research-52@42matters.com,Space2020,14.4.2,41772029758,,IN,
+59,ios-research-51@42matters.com,Space2020,14.4.2,41772029758,,JP,
+60,ios-research-51@42matters.com,Space2020,14.4.2,41772029758,,JP,Reactivate on another device on 10 Aug 2022
+61,ios-research-50@42matters.com,Space2020,14.4.2,,,RU,
+62,ios-research-54@42matters.com,Space2020,15.7.6,41772029758,,BR,
+63,ios-research-55@42matters.com,Space2020,15.8.3,41772029758,,TW,
+,ios1-research-5@42matters.com ,Space2020,,,,US,
+110,ios1-research-5@42matters.com ,Space2020,,,,US,iPhone X
+101,ios1-research-5@42matters.com ,Space2020,,,,US,iPhone 6S pink ios 15.8
+100,security-1@42matters.com,,,41772029758,,US,
