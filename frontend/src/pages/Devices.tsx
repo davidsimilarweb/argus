@@ -838,7 +838,7 @@ export default function Devices() {
                   }}
                 >
                   <QRCodeSVG
-                    value={`${window.location.origin}/devices?device=${selectedDevice.id}`}
+                    value={selectedDevice.id}
                     size={256}
                     level="H"
                     includeMargin={false}
@@ -948,7 +948,7 @@ export default function Devices() {
                   maxWidth: '400px',
                   textAlign: 'center'
                 }}>
-                  💡 Tip: Print this QR code and stick it on the physical device. Scan it with any phone camera to instantly open this device's details.
+                  💡 Tip: Print this QR code and stick it on the physical device. Use the Scan page in Argus to scan and open this device's details.
                 </div>
               </div>
             )}

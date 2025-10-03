@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Devices from './pages/Devices';
 import Accounts from './pages/Accounts';
 import Hosts from './pages/Hosts';
+import Scan from './pages/Scan';
 import Logo from './components/Logo';
 
 const queryClient = new QueryClient({
@@ -39,6 +40,7 @@ function AppShell() {
           <Link className="side-link" to="/devices" style={isActive('/devices')} onClick={() => setIsSidebarOpen(false)}>Devices</Link>
           <Link className="side-link" to="/accounts" style={isActive('/accounts')} onClick={() => setIsSidebarOpen(false)}>Accounts</Link>
           <Link className="side-link" to="/hosts" style={isActive('/hosts')} onClick={() => setIsSidebarOpen(false)}>Hosts</Link>
+          <Link className="side-link" to="/scan" style={isActive('/scan')} onClick={() => setIsSidebarOpen(false)}>Scan</Link>
         </nav>
       </aside>
       <header className="topbar">
@@ -57,6 +59,7 @@ function AppShell() {
           <Route path="/devices" element={<Devices />} />
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/hosts" element={<Hosts />} />
+          <Route path="/scan" element={<Scan />} />
         </Routes>
       </main>
     </div>
