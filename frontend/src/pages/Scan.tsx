@@ -67,7 +67,7 @@ export default function Scan() {
                 console.error('Error stopping scanner:', err);
               });
             },
-            (errorMessage) => {
+            (_errorMessage) => {
               // Scan error (e.g., no QR code in view) - this is normal, ignore
             }
           );
