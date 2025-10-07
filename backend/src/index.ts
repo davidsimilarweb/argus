@@ -11,7 +11,10 @@ const app: Express = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['https://argus.local', 'https://api.argus.local', 'http://localhost:5173'],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
