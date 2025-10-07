@@ -1,0 +1,22 @@
+{
+	auto_https off
+}
+
+https://argus.lan:443, https://192.168.0.12:443 {
+	tls /Users/42matters/dev/argus/argus.lan+4.pem /Users/42matters/dev/argus/argus.lan+4-key.pem
+
+	handle /api/* {
+		reverse_proxy localhost:3000
+	}
+
+	handle {
+		root * /Users/42matters/dev/argus/frontend/dist
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+https://api.argus.lan:443 {
+	tls /Users/42matters/dev/argus/argus.lan+4.pem /Users/42matters/dev/argus/argus.lan+4-key.pem
+	reverse_proxy localhost:3000
+}

@@ -100,3 +100,12 @@ export const hostApi = {
   delete: (id: string) => api.delete<ApiResponse<void>>(`/hosts/${id}`),
   getDevices: (id: string) => api.get<ApiResponse<Device[]>>(`/hosts/${id}/devices`),
 };
+
+// Settings API
+export const settingsApi = {
+  getAll: () => api.get<ApiResponse<Record<string, string>>>('/settings'),
+  getByKey: (key: string) => api.get<ApiResponse<{ key: string; value: string }>>(`/settings/${key}`),
+  upsert: (key: string, value: string) => api.post<ApiResponse<{ key: string; value: string }>>('/settings', { key, value }),
+  batchUpdate: (settings: Record<string, string>) => api.post<ApiResponse<{ updated: number }>>('/settings/batch', { settings }),
+  delete: (key: string) => api.delete<ApiResponse<void>>(`/settings/${key}`),
+};

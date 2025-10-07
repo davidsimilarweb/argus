@@ -6,6 +6,7 @@ import { deviceApi, accountApi, hostApi, type Device } from '../lib/api';
 import Modal from '../components/Modal';
 import Timeline from '../components/Timeline';
 import { useToast } from '../hooks/useToast';
+import { useSettings } from '../contexts/SettingsContext';
 import { QRCodeSVG } from 'qrcode.react';
 
 export default function Devices() {
@@ -22,10 +23,12 @@ export default function Devices() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [lastIpOctet, setLastIpOctet] = useState('');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { showToast, ToastContainer } = useToast();
+  const { availableModels, baseIp } = useSettings();
 
   // Check if we should open a specific device from URL params
   const deviceIdFromUrl = searchParams.get('device');
@@ -538,7 +541,12 @@ export default function Devices() {
 
           <div className="form-group">
             <label htmlFor="model">Model</label>
-            <input type="text" id="model" name="model" placeholder="iPhone 14 Pro" />
+            <select id="model" name="model">
+              <option value="">Select model...</option>
+              {availableModels.map((model) => (
+                <option key={model} value={model}>{model}</option>
+              ))}
+            </select>
           </div>
 
           <div className="form-group">
@@ -548,7 +556,21 @@ export default function Devices() {
 
           <div className="form-group">
             <label htmlFor="staticIp">Static IP</label>
-            <input type="text" id="staticIp" name="staticIp" placeholder="192.168.1.100" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ color: 'var(--muted)' }}>{baseIp}.</span>
+              <input
+                type="number"
+                id="lastOctet"
+                value={lastIpOctet}
+                onChange={(e) => setLastIpOctet(e.target.value)}
+                placeholder="100"
+                min="1"
+                max="254"
+                style={{ flex: 1 }}
+              />
+            </div>
+            <input type="hidden" id="staticIp" name="staticIp" value={lastIpOctet ? `${baseIp}.${lastIpOctet}` : ''} />
+            <small>Enter the last octet (1-254). Full IP: {lastIpOctet ? `${baseIp}.${lastIpOctet}` : `${baseIp}.X`}</small>
           </div>
 
           <div className="form-group">
@@ -1010,7 +1032,12 @@ export default function Devices() {
 
           <div className="form-group">
             <label htmlFor="model">Model</label>
-            <input type="text" id="model" name="model" placeholder="iPhone 14 Pro" defaultValue={selectedDevice?.model || ''} />
+            <select id="model" name="model" defaultValue={selectedDevice?.model || ''}>
+              <option value="">Select model...</option>
+              {availableModels.map((model) => (
+                <option key={model} value={model}>{model}</option>
+              ))}
+            </select>
           </div>
 
           <div className="form-group">
@@ -1020,7 +1047,26 @@ export default function Devices() {
 
           <div className="form-group">
             <label htmlFor="staticIp">Static IP</label>
-            <input type="text" id="staticIp" name="staticIp" placeholder="192.168.1.100" defaultValue={selectedDevice?.staticIp || ''} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ color: 'var(--muted)' }}>{baseIp}.</span>
+              <input
+                type="number"
+                id="editLastOctet"
+                defaultValue={selectedDevice?.staticIp ? selectedDevice.staticIp.split('.').pop() : ''}
+                placeholder="100"
+                min="1"
+                max="254"
+                style={{ flex: 1 }}
+                onChange={(e) => {
+                  const hiddenInput = document.getElementById('staticIp') as HTMLInputElement;
+                  if (hiddenInput) {
+                    hiddenInput.value = e.target.value ? `${baseIp}.${e.target.value}` : '';
+                  }
+                }}
+              />
+            </div>
+            <input type="hidden" id="staticIp" name="staticIp" defaultValue={selectedDevice?.staticIp || ''} />
+            <small>Enter the last octet (1-254). Full IP: {selectedDevice?.staticIp || `${baseIp}.X`}</small>
           </div>
 
           <div className="form-group">

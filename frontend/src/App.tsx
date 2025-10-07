@@ -2,12 +2,14 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { SettingsProvider } from './contexts/SettingsContext';
 import './App.css';
 import Dashboard from './pages/Dashboard';
 import Devices from './pages/Devices';
 import Accounts from './pages/Accounts';
 import Hosts from './pages/Hosts';
 import Scan from './pages/Scan';
+import Settings from './pages/Settings';
 import Logo from './components/Logo';
 
 const queryClient = new QueryClient({
@@ -41,6 +43,7 @@ function AppShell() {
           <Link className="side-link" to="/accounts" style={isActive('/accounts')} onClick={() => setIsSidebarOpen(false)}>Accounts</Link>
           <Link className="side-link" to="/hosts" style={isActive('/hosts')} onClick={() => setIsSidebarOpen(false)}>Hosts</Link>
           <Link className="side-link" to="/scan" style={isActive('/scan')} onClick={() => setIsSidebarOpen(false)}>Scan</Link>
+          <Link className="side-link" to="/settings" style={isActive('/settings')} onClick={() => setIsSidebarOpen(false)}>Settings</Link>
         </nav>
       </aside>
       <header className="topbar">
@@ -60,6 +63,7 @@ function AppShell() {
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/hosts" element={<Hosts />} />
           <Route path="/scan" element={<Scan />} />
+          <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>
     </div>
@@ -69,9 +73,11 @@ function AppShell() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <AppShell />
-      </Router>
+      <SettingsProvider>
+        <Router>
+          <AppShell />
+        </Router>
+      </SettingsProvider>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );

@@ -171,3 +171,13 @@ model HealthCheck {
 
   @@map("health_checks")
 }
+
+model Settings {
+  id              String   @id @default(uuid())
+  key             String   @unique
+  value           String
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("settings")
+}

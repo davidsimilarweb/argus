@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import deviceRoutes from './routes/devices';
 import accountRoutes from './routes/accounts';
 import hostRoutes from './routes/hosts';
+import settingsRoutes from './routes/settings';
 
 dotenv.config();
 
@@ -12,7 +13,7 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 
 // Middleware
 app.use(cors({
-  origin: ['https://argus.local', 'https://api.argus.local', 'https://192.168.0.12', 'http://localhost:5173'],
+  origin: ['https://argus.lan', 'https://api.argus.lan', 'https://192.168.0.12', 'http://localhost:5173'],
   credentials: true
 }));
 app.use(express.json());
@@ -32,6 +33,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 app.use('/api/devices', deviceRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/hosts', hostRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
