@@ -1,0 +1,60 @@
+.scan-fab {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(0,229,255,0.15), rgba(0,255,159,0.2));
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 4px 12px rgba(0,0,0,0.3),
+    0 0 20px rgba(0,255,159,0.3);
+  transition: all 0.2s ease;
+  z-index: 1000;
+  padding: 0;
+}
+
+.scan-fab:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow:
+    0 6px 20px rgba(0,0,0,0.4),
+    0 0 30px rgba(0,255,159,0.5);
+  background: linear-gradient(135deg, rgba(0,229,255,0.25), rgba(0,255,159,0.3));
+  border-color: var(--accent);
+}
+
+.scan-fab:active {
+  transform: translateY(-1px) scale(1.02);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .scan-fab {
+    bottom: calc(1rem + env(safe-area-inset-bottom));
+    right: 1rem;
+    width: 56px;
+    height: 56px;
+  }
+}
+
+/* Add animation on mount */
+@keyframes fabSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(100px) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.scan-fab {
+  animation: fabSlideIn 0.3s ease-out;
+}

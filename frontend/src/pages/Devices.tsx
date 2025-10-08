@@ -300,9 +300,13 @@ export default function Devices() {
       if (device) {
         setSelectedDevice(device);
         setIsDetailsOpen(true);
+      } else {
+        // Device not found - show error toast and clear URL param
+        showToast(`Device with ID "${deviceIdFromUrl}" not found`, 'error');
+        navigate('/devices', { replace: true });
       }
     }
-  }, [deviceIdFromUrl, devices]);
+  }, [deviceIdFromUrl, devices, navigate, showToast]);
 
   // Filter devices based on search and filter criteria
   const filteredDevices = devices.filter((device) => {
@@ -844,7 +848,6 @@ export default function Devices() {
                 <div style={{ textAlign: 'center' }}>
                   <h3 style={{ color: 'var(--accent)', marginBottom: '0.5rem' }}>
                     {selectedDevice.internalSerial}
-                    {selectedDevice.deviceId && ` (#${selectedDevice.deviceId})`}
                   </h3>
                   <p style={{ color: '#888', fontSize: '0.9rem' }}>
                     Scan this QR code to open this device's details
@@ -941,7 +944,6 @@ export default function Devices() {
                             </head>
                             <body>
                               <h1>${selectedDevice.internalSerial}</h1>
-                              ${selectedDevice.deviceId ? `<p>Device ID: #${selectedDevice.deviceId}</p>` : ''}
                               <div class="qr-container">
                                 ${document.getElementById(`qr-code-${selectedDevice.id}`)?.innerHTML || ''}
                               </div>

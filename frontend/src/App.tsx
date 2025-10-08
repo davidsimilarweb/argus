@@ -11,6 +11,7 @@ import Hosts from './pages/Hosts';
 import Scan from './pages/Scan';
 import Settings from './pages/Settings';
 import Logo from './components/Logo';
+import ScanFab from './components/ScanFab';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,6 +67,7 @@ function AppShell() {
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>
+      <ScanFab />
     </div>
   );
 }

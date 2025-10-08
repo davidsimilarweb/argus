@@ -58,14 +58,22 @@ export default function Scan() {
               // Successfully scanned a QR code
               console.log('Scanned:', decodedText);
 
-              // Stop scanning
-              scanner.stop().then(() => {
+              // Stop scanning if it's running
+              if (scanner.isScanning) {
+                scanner.stop().then(() => {
+                  setIsScanning(false);
+                  // Navigate to device with the scanned ID
+                  navigate(`/devices?device=${decodedText}`);
+                }).catch((err) => {
+                  console.error('Error stopping scanner:', err);
+                  // Navigate anyway
+                  navigate(`/devices?device=${decodedText}`);
+                });
+              } else {
+                // Already stopped, just navigate
                 setIsScanning(false);
-                // Navigate to device with the scanned ID
                 navigate(`/devices?device=${decodedText}`);
-              }).catch((err) => {
-                console.error('Error stopping scanner:', err);
-              });
+              }
             },
             (_errorMessage) => {
               // Scan error (e.g., no QR code in view) - this is normal, ignore
@@ -97,16 +105,16 @@ export default function Scan() {
 
     // Cleanup on unmount
     return () => {
-      if (scannerRef.current) {
+      if (scannerRef.current && scannerRef.current.isScanning) {
         scannerRef.current.stop().catch((err) => {
           console.error('Error stopping scanner on unmount:', err);
         });
       }
     };
-  }, [navigate, showToast, isScanning]);
+  }, []); // Empty dependency array - only run once on mount
 
   const handleCancel = () => {
-    if (scannerRef.current && isScanning) {
+    if (scannerRef.current && scannerRef.current.isScanning) {
       scannerRef.current.stop().then(() => {
         setIsScanning(false);
         navigate('/devices');
