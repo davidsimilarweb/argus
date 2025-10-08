@@ -183,10 +183,12 @@ tbody tr:hover { background: rgba(255,255,255,0.03); }
   width: 8px; height: 8px; border-radius: 999px; background: currentColor;
   box-shadow: 0 0 10px currentColor;
 }
+.status-pending { color: #9aa4b2; background: rgba(154,164,178,0.12); }
+.status-ready { color: #00e5ff; background: rgba(0,229,255,0.08); }
 .status-deployed { color: #00ff9f; background: rgba(0,255,159,0.08); }
-.status-standby { color: #00e5ff; background: rgba(0,229,255,0.08); }
 .status-broken { color: #ff5563; background: rgba(255,85,99,0.10); }
 .status-testing { color: #ffd166; background: rgba(255,209,102,0.10); }
+.status-lab_support { color: #b794f6; background: rgba(183,148,246,0.10); }
 .status-active { color: #00ff9f; background: rgba(0,255,159,0.08); }
 .status-locked, .status-disabled, .status-offline { color: #9aa4b2; background: rgba(154,164,178,0.12); }
 .status-online { color: #00ff9f; background: rgba(0,255,159,0.08); }

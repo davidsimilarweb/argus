@@ -13,10 +13,12 @@ enum DeviceType {
 }
 
 enum DeviceStatus {
+  pending
+  ready
   deployed
-  standby
   broken
   testing
+  lab_support
 }
 
 enum AccountStatus {
@@ -51,7 +53,7 @@ model Device {
   deviceType        DeviceType @map("device_type")
   model             String?
   iosVersion        String?  @map("ios_version")
-  currentStatus     DeviceStatus @default(standby) @map("current_status")
+  currentStatus     DeviceStatus @default(pending) @map("current_status")
   currentHostId     String?  @map("current_host_id")
   currentAccountId  String?  @map("current_account_id")
   notes             String?

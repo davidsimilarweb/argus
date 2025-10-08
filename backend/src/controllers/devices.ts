@@ -107,11 +107,13 @@ export const updateDevice = async (req: Request, res: Response) => {
         model,
         iosVersion,
         notes,
-        deviceId: typeof deviceId === 'number'
-          ? deviceId
-          : deviceId
-            ? parseInt(deviceId, 10)
-            : undefined
+        deviceId: deviceId === null
+          ? null
+          : typeof deviceId === 'number'
+            ? deviceId
+            : deviceId
+              ? parseInt(deviceId, 10)
+              : undefined
       }
     });
 

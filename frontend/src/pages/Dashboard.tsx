@@ -32,10 +32,12 @@ export default function Dashboard() {
 
   const stats = {
     totalDevices: devices.length,
+    pending: devices.filter(d => d.currentStatus === 'pending').length,
+    ready: devices.filter(d => d.currentStatus === 'ready').length,
     deployed: devices.filter(d => d.currentStatus === 'deployed').length,
-    standby: devices.filter(d => d.currentStatus === 'standby').length,
     broken: devices.filter(d => d.currentStatus === 'broken').length,
     testing: devices.filter(d => d.currentStatus === 'testing').length,
+    labSupport: devices.filter(d => d.currentStatus === 'lab_support').length,
     totalAccounts: accounts.length,
     totalHosts: hosts.length,
   };
@@ -48,13 +50,17 @@ export default function Dashboard() {
           <h3>Total Devices</h3>
           <p className="stat-number">{stats.totalDevices}</p>
         </div>
+        <div className="stat-card status-pending">
+          <h3>Pending</h3>
+          <p className="stat-number">{stats.pending}</p>
+        </div>
+        <div className="stat-card status-ready">
+          <h3>Ready</h3>
+          <p className="stat-number">{stats.ready}</p>
+        </div>
         <div className="stat-card status-deployed">
           <h3>Deployed</h3>
           <p className="stat-number">{stats.deployed}</p>
-        </div>
-        <div className="stat-card status-standby">
-          <h3>Standby</h3>
-          <p className="stat-number">{stats.standby}</p>
         </div>
         <div className="stat-card status-broken">
           <h3>Broken</h3>
@@ -63,6 +69,10 @@ export default function Dashboard() {
         <div className="stat-card status-testing">
           <h3>Testing</h3>
           <p className="stat-number">{stats.testing}</p>
+        </div>
+        <div className="stat-card status-lab_support">
+          <h3>Lab Support</h3>
+          <p className="stat-number">{stats.labSupport}</p>
         </div>
         <div className="stat-card">
           <h3>Accounts</h3>

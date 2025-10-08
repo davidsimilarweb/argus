@@ -23,6 +23,8 @@ export default function Devices() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [hostFilter, setHostFilter] = useState<string>('all');
+  const [countryFilter, setCountryFilter] = useState<string>('all');
   const [lastIpOctet, setLastIpOctet] = useState('');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -194,7 +196,7 @@ export default function Devices() {
     // Update basic device info
     const data = {
       internalSerial: formData.get('internalSerial') || undefined,
-      deviceId: rawId ? parseInt(rawId, 10) : undefined,
+      deviceId: rawId ? parseInt(rawId, 10) : null, // Explicitly set to null when empty
       staticIp: formData.get('staticIp') || undefined,
       deviceType: formData.get('deviceType'),
       model: formData.get('model') || undefined,
@@ -308,6 +310,18 @@ export default function Devices() {
     }
   }, [deviceIdFromUrl, devices, navigate, showToast]);
 
+  // Get unique countries from devices' assigned accounts with counts
+  const countryCounts = devices.reduce((acc, device) => {
+    const country = device.currentAccount?.country;
+    if (country) {
+      acc[country] = (acc[country] || 0) + 1;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
+  const uniqueCountries = Object.keys(countryCounts).sort();
+  const noCountryCount = devices.filter(d => !d.currentAccount?.country).length;
+
   // Filter devices based on search and filter criteria
   const filteredDevices = devices.filter((device) => {
     const matchesSearch = searchQuery === '' ||
@@ -317,8 +331,12 @@ export default function Devices() {
 
     const matchesStatus = statusFilter === 'all' || device.currentStatus === statusFilter;
     const matchesType = typeFilter === 'all' || device.deviceType === typeFilter;
+    const matchesHost = hostFilter === 'all' ||
+      (hostFilter === 'unassigned' ? !device.currentHostId : device.currentHostId === hostFilter);
+    const matchesCountry = countryFilter === 'all' ||
+      (countryFilter === 'none' ? !device.currentAccount?.country : device.currentAccount?.country === countryFilter);
 
-    return matchesSearch && matchesStatus && matchesType;
+    return matchesSearch && matchesStatus && matchesType && matchesHost && matchesCountry;
   });
 
   if (isLoading) return <div>Loading devices...</div>;
@@ -474,10 +492,12 @@ export default function Devices() {
           }}
         >
           <option value="all">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="ready">Ready</option>
           <option value="deployed">Deployed</option>
-          <option value="standby">Standby</option>
           <option value="broken">Broken</option>
           <option value="testing">Testing</option>
+          <option value="lab_support">Lab Support</option>
         </select>
         <select
           value={typeFilter}
@@ -495,12 +515,50 @@ export default function Devices() {
           <option value="iphone">iPhone</option>
           <option value="ipad">iPad</option>
         </select>
-        {(searchQuery || statusFilter !== 'all' || typeFilter !== 'all') && (
+        <select
+          value={hostFilter}
+          onChange={(e) => setHostFilter(e.target.value)}
+          style={{
+            padding: '0.65rem 0.9rem',
+            border: 'var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'rgba(255,255,255,0.04)',
+            color: 'var(--text)',
+            fontSize: '0.95rem'
+          }}
+        >
+          <option value="all">All Hosts</option>
+          <option value="unassigned">Unassigned</option>
+          {hosts.map((host) => (
+            <option key={host.id} value={host.id}>{host.name}</option>
+          ))}
+        </select>
+        <select
+          value={countryFilter}
+          onChange={(e) => setCountryFilter(e.target.value)}
+          style={{
+            padding: '0.65rem 0.9rem',
+            border: 'var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'rgba(255,255,255,0.04)',
+            color: 'var(--text)',
+            fontSize: '0.95rem'
+          }}
+        >
+          <option value="all">All Countries</option>
+          <option value="none">No Country ({noCountryCount})</option>
+          {uniqueCountries.map((country) => (
+            <option key={country} value={country}>{country} ({countryCounts[country]})</option>
+          ))}
+        </select>
+        {(searchQuery || statusFilter !== 'all' || typeFilter !== 'all' || hostFilter !== 'all' || countryFilter !== 'all') && (
           <button
             onClick={() => {
               setSearchQuery('');
               setStatusFilter('all');
               setTypeFilter('all');
+              setHostFilter('all');
+              setCountryFilter('all');
             }}
             style={{
               padding: '0.65rem 0.9rem',
@@ -598,10 +656,12 @@ export default function Devices() {
           <div className="form-group">
             <label htmlFor="status">New Status *</label>
             <select id="status" name="status" required defaultValue={selectedDevice?.currentStatus}>
+              <option value="pending">Pending</option>
+              <option value="ready">Ready</option>
               <option value="deployed">Deployed</option>
-              <option value="standby">Standby</option>
               <option value="broken">Broken</option>
               <option value="testing">Testing</option>
+              <option value="lab_support">Lab Support</option>
             </select>
           </div>
           <div className="form-actions">
@@ -707,12 +767,14 @@ export default function Devices() {
             onClick={() => { setSelectedDevice(device); setIsDetailsOpen(true); }}
           >
               <div className="device-card-header">
-              <div className="device-id">{typeof device.deviceId === 'number' ? `#${device.deviceId}` : 'Unassigned'}</div>
+              <div className="device-id">{typeof device.deviceId === 'number' ? `#${device.deviceId}` : device.internalSerial}</div>
               <span className={`status-badge status-${device.currentStatus}`}>{device.currentStatus}</span>
             </div>
-            <div className="device-meta">
-              <span style={{ opacity: 0.9 }}>Serial: {device.internalSerial}</span>
-            </div>
+            {typeof device.deviceId === 'number' && (
+              <div className="device-meta">
+                <span style={{ opacity: 0.9 }}>Serial: {device.internalSerial}</span>
+              </div>
+            )}
             <div className="device-meta" style={{ marginTop: '0.5rem' }}>
               <span className={`pill ${device.deviceType === 'iphone' ? 'pill-iphone' : 'pill-ipad'}`}>
                 {device.deviceType === 'iphone' ? 'iPhone' : 'iPad'}
@@ -1004,11 +1066,13 @@ export default function Devices() {
 
           <div className="form-group">
             <label htmlFor="currentStatus">Status *</label>
-            <select id="currentStatus" name="currentStatus" required defaultValue={selectedDevice?.currentStatus || 'standby'}>
+            <select id="currentStatus" name="currentStatus" required defaultValue={selectedDevice?.currentStatus || 'pending'}>
+              <option value="pending">Pending</option>
+              <option value="ready">Ready</option>
               <option value="deployed">Deployed</option>
-              <option value="standby">Standby</option>
               <option value="broken">Broken</option>
               <option value="testing">Testing</option>
+              <option value="lab_support">Lab Support</option>
             </select>
           </div>
 

@@ -11,6 +11,7 @@ export default function Accounts() {
   const [selectedAccount, setSelectedAccount] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [countryFilter, setCountryFilter] = useState<string>('all');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -58,6 +59,17 @@ export default function Accounts() {
     }
   }, [accountIdFromUrl, accounts]);
 
+  // Get unique countries for the filter dropdown with counts
+  const countryCounts = accounts.reduce((acc, account) => {
+    if (account.country) {
+      acc[account.country] = (acc[account.country] || 0) + 1;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
+  const uniqueCountries = Object.keys(countryCounts).sort();
+  const noCountryCount = accounts.filter(a => !a.country).length;
+
   // Filter accounts based on search and filter criteria
   const filteredAccounts = accounts.filter((account) => {
     const matchesSearch = searchQuery === '' ||
@@ -65,8 +77,10 @@ export default function Accounts() {
       account.country?.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus = statusFilter === 'all' || account.status === statusFilter;
+    const matchesCountry = countryFilter === 'all' ||
+      (countryFilter === 'none' ? !account.country : account.country === countryFilter);
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesCountry;
   });
 
   if (isLoading) return <div>Loading accounts...</div>;
@@ -119,11 +133,30 @@ export default function Accounts() {
           <option value="locked">Locked</option>
           <option value="disabled">Disabled</option>
         </select>
-        {(searchQuery || statusFilter !== 'all') && (
+        <select
+          value={countryFilter}
+          onChange={(e) => setCountryFilter(e.target.value)}
+          style={{
+            padding: '0.65rem 0.9rem',
+            border: 'var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'rgba(255,255,255,0.04)',
+            color: 'var(--text)',
+            fontSize: '0.95rem'
+          }}
+        >
+          <option value="all">All Countries</option>
+          <option value="none">No Country ({noCountryCount})</option>
+          {uniqueCountries.map((country) => (
+            <option key={country} value={country}>{country} ({countryCounts[country]})</option>
+          ))}
+        </select>
+        {(searchQuery || statusFilter !== 'all' || countryFilter !== 'all') && (
           <button
             onClick={() => {
               setSearchQuery('');
               setStatusFilter('all');
+              setCountryFilter('all');
             }}
             style={{
               padding: '0.65rem 0.9rem',

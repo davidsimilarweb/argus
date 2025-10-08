@@ -26,7 +26,7 @@ export interface Device {
   deviceType: 'iphone' | 'ipad';
   model?: string;
   iosVersion?: string;
-  currentStatus: 'deployed' | 'standby' | 'broken' | 'testing';
+  currentStatus: 'pending' | 'ready' | 'deployed' | 'broken' | 'testing' | 'lab_support';
   currentHostId?: string;
   currentAccountId?: string;
   notes?: string;
