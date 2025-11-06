@@ -83,7 +83,7 @@ model Device {
   hostHistory       DeviceHostHistory[]
   maintenanceEvents MaintenanceEvent[]
   healthChecks      HealthCheck[]
-  networkReservations NetworkReservation[]
+  slotHistory       SlotDeviceHistory[]
 
   @@map("devices")
 }
