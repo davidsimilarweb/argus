@@ -58,6 +58,27 @@ export interface Host {
   updatedAt: string;
 }
 
+export interface Slot {
+  id: string;
+  slotNumber: number;
+  status: 'active' | 'warning' | 'error' | 'stopped' | 'timeout';
+  lastHealthCheck?: string;
+  lastErrorMessage?: string;
+  host: Host;
+  currentDevice?: Device | null;
+}
+
+export interface HealthSummary {
+  totalSlots: number;
+  activeSlots: number;
+  warningSlots: number;
+  errorSlots: number;
+  stoppedSlots: number;
+  timeoutSlots: number;
+  byHost: Record<string, { total: number; active: number; warning: number; error: number; stopped: number; timeout: number }>;
+  recentErrors: Array<{ slotNumber: number; slotId: string; errorMessage?: string; errorType?: string; occurredAt: string }>;
+}
+
 // API methods
 export const deviceApi = {
   getAll: () => api.get<ApiResponse<Device[]>>('/devices'),
@@ -101,6 +122,22 @@ export const hostApi = {
   getDevices: (id: string) => api.get<ApiResponse<Device[]>>(`/hosts/${id}/devices`),
 };
 
+export const slotApi = {
+  list: () => api.get<ApiResponse<Slot[]>>('/slots'),
+  getById: (id: string) => api.get<ApiResponse<Slot>>(`/slots/${id}`),
+  assignDevice: (id: string, deviceId: string, notes?: string) => api.post<ApiResponse<any>>(`/slots/${id}/assign-device`, { deviceId, notes }),
+  unassignDevice: (id: string, notes?: string) => api.post<ApiResponse<any>>(`/slots/${id}/unassign-device`, { notes }),
+  update: (id: string, data: Partial<Pick<Slot, 'status'>> & { notes?: string }) => api.patch<ApiResponse<Slot>>(`/slots/${id}`, data),
+  start: (id: string) => api.post<ApiResponse<any>>(`/slots/${id}/start`),
+  stop: (id: string) => api.post<ApiResponse<any>>(`/slots/${id}/stop`),
+  health: (slotNumber: number, data: any) => api.post<ApiResponse<any>>(`/slots/${slotNumber}/health`, data),
+  healthHistory: (id: string, params?: any) => api.get<ApiResponse<any[]>>(`/slots/${id}/health-history`, { params }),
+};
+
+export const healthApi = {
+  summary: () => api.get<ApiResponse<HealthSummary>>('/health/summary'),
+};
+
 // Settings API
 export const settingsApi = {
   getAll: () => api.get<ApiResponse<Record<string, string>>>('/settings'),
@@ -108,4 +145,23 @@ export const settingsApi = {
   upsert: (key: string, value: string) => api.post<ApiResponse<{ key: string; value: string }>>('/settings', { key, value }),
   batchUpdate: (settings: Record<string, string>) => api.post<ApiResponse<{ updated: number }>>('/settings/batch', { settings }),
   delete: (key: string) => api.delete<ApiResponse<void>>(`/settings/${key}`),
+};
+
+export interface NetworkReservation {
+  id: string;
+  ip: string;
+  type: 'device' | 'external';
+  label?: string;
+  reservedDeviceId?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const networkApi = {
+  list: () => api.get<ApiResponse<NetworkReservation[]>>('/network/reservations'),
+  create: (data: Partial<NetworkReservation>) => api.post<ApiResponse<NetworkReservation>>('/network/reservations', data),
+  update: (id: string, data: Partial<NetworkReservation>) => api.patch<ApiResponse<NetworkReservation>>(`/network/reservations/${id}`, data),
+  delete: (id: string) => api.delete<ApiResponse<void>>(`/network/reservations/${id}`),
+  summary: () => api.get<ApiResponse<{ totalReservations: number; totalDevices: number; conflicts: Array<{ ip: string; sources: string[] }> }>>('/network/reservations/summary'),
 };

@@ -33,6 +33,14 @@ enum HostStatus {
   maintenance
 }
 
+enum SlotStatus {
+  active
+  warning
+  error
+  stopped
+  timeout
+}
+
 enum MaintenanceEventType {
   battery_replacement
   screen_repair
@@ -45,11 +53,17 @@ enum HealthStatus {
   error
 }
 
+enum ReservationType {
+  device
+  external
+  dhcp
+}
+
 model Device {
   id                String   @id @default(uuid())
   internalSerial    String   @unique @map("internal_serial")
   deviceId          Int?     @unique @map("device_id")
-  staticIp          String?  @map("static_ip")
+  staticIp          String?  @unique @map("static_ip")
   deviceType        DeviceType @map("device_type")
   model             String?
   iosVersion        String?  @map("ios_version")
@@ -62,12 +76,14 @@ model Device {
 
   currentHost       Host?    @relation("DeviceCurrentHost", fields: [currentHostId], references: [id])
   currentAccount    Account? @relation("DeviceCurrentAccount", fields: [currentAccountId], references: [id])
+  currentSlot       InspectorSlot? @relation("SlotCurrentDevice")
 
   statusHistory     DeviceStatusHistory[]
   accountHistory    DeviceAccountHistory[]
   hostHistory       DeviceHostHistory[]
   maintenanceEvents MaintenanceEvent[]
   healthChecks      HealthCheck[]
+  networkReservations NetworkReservation[]
 
   @@map("devices")
 }
@@ -94,12 +110,15 @@ model Host {
   name         String   @unique
   hostname     String?
   status       HostStatus @default(offline)
+  slotCount    Int      @default(0) @map("slot_count")
+  slotOffset   Int      @default(0) @map("slot_offset")
   notes        String?
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   currentDevices Device[] @relation("DeviceCurrentHost")
   deviceHistory  DeviceHostHistory[]
+  slots          InspectorSlot[]
 
   @@map("hosts")
 }
@@ -161,17 +180,32 @@ model MaintenanceEvent {
 
 model HealthCheck {
   id           String   @id @default(uuid())
-  deviceId     String   @map("device_id")
+  deviceId     String?  @map("device_id")
+  slotId       String?  @map("slot_id")
   status       HealthStatus
-  cpuUsage     Float?   @map("cpu_usage")
-  memoryUsage  Float?   @map("memory_usage")
-  batteryLevel Int?     @map("battery_level")
   errorMessage String?  @map("error_message")
+  metadata     Json?
   checkedAt    DateTime @default(now()) @map("checked_at")
 
-  device       Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  device       Device?  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  slot         InspectorSlot? @relation(fields: [slotId], references: [id], onDelete: Cascade)
 
   @@map("health_checks")
+  @@index([slotId, checkedAt])
+}
+
+model SlotDeviceHistory {
+  id           String    @id @default(uuid())
+  slotId       String    @map("slot_id")
+  deviceId     String    @map("device_id")
+  assignedAt   DateTime  @default(now()) @map("assigned_at")
+  unassignedAt DateTime? @map("unassigned_at")
+  notes        String?
+
+  slot         InspectorSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  device       Device        @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("slot_device_history")
 }
 
 model Settings {
@@ -182,4 +216,43 @@ model Settings {
   createdAt       DateTime @default(now()) @map("created_at")
 
   @@map("settings")
+}
+
+model NetworkReservation {
+  id               String   @id @default(uuid())
+  ip               String   @unique
+  type             ReservationType @default(device)
+  label            String?
+  reservedDeviceId String?  @map("reserved_device_id")
+  notes            String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  reservedDevice   Device?  @relation(fields: [reservedDeviceId], references: [id], onDelete: SetNull)
+
+  @@map("network_reservations")
+}
+
+model InspectorSlot {
+  id               String      @id @default(uuid())
+  slotNumber       Int         @unique @map("slot_number")
+  hostId           String      @map("host_id")
+  status           SlotStatus  @default(stopped)
+  currentDeviceId  String?     @unique @map("current_device_id")
+  lastHealthCheck  DateTime?   @map("last_health_check")
+  lastErrorMessage String?     @map("last_error_message")
+  notes            String?
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  host             Host        @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  currentDevice    Device?     @relation("SlotCurrentDevice", fields: [currentDeviceId], references: [id], onDelete: SetNull)
+
+  healthChecks     HealthCheck[]
+  slotHistory      SlotDeviceHistory[]
+
+  @@map("inspector_slots")
+  @@index([hostId])
+  @@index([status])
+  @@index([slotNumber])
 }

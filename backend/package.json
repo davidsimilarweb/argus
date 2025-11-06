@@ -10,7 +10,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "import:iphones": "ts-node src/scripts/import_csv.ts"
+    "import:iphones": "ts-node src/scripts/import_csv.ts",
+    "migrate:slots": "ts-node src/scripts/migrate_to_slots.ts"
   },
   "keywords": [],
   "author": "",

@@ -11,6 +11,8 @@ import Hosts from './pages/Hosts';
 import Scan from './pages/Scan';
 import Settings from './pages/Settings';
 import Logo from './components/Logo';
+import Slots from './pages/Slots';
+import IPs from './pages/IPs';
 import ScanFab from './components/ScanFab';
 
 const queryClient = new QueryClient({
@@ -43,6 +45,8 @@ function AppShell() {
           <Link className="side-link" to="/devices" style={isActive('/devices')} onClick={() => setIsSidebarOpen(false)}>Devices</Link>
           <Link className="side-link" to="/accounts" style={isActive('/accounts')} onClick={() => setIsSidebarOpen(false)}>Accounts</Link>
           <Link className="side-link" to="/hosts" style={isActive('/hosts')} onClick={() => setIsSidebarOpen(false)}>Hosts</Link>
+          <Link className="side-link" to="/slots" style={isActive('/slots')} onClick={() => setIsSidebarOpen(false)}>Slots</Link>
+          <Link className="side-link" to="/ips" style={isActive('/ips')} onClick={() => setIsSidebarOpen(false)}>IPs</Link>
           <Link className="side-link" to="/scan" style={isActive('/scan')} onClick={() => setIsSidebarOpen(false)}>Scan</Link>
           <Link className="side-link" to="/settings" style={isActive('/settings')} onClick={() => setIsSidebarOpen(false)}>Settings</Link>
         </nav>
@@ -63,6 +67,8 @@ function AppShell() {
           <Route path="/devices" element={<Devices />} />
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/hosts" element={<Hosts />} />
+          <Route path="/slots" element={<Slots />} />
+          <Route path="/ips" element={<IPs />} />
           <Route path="/scan" element={<Scan />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
