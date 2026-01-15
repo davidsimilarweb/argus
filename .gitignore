@@ -1,35 +1,24 @@
-# Dependencies
-node_modules/
-.pnpm-debug.log*
-
-# Environment variables
-.env
-.env.local
-.env.*.local
-
-# Build outputs
-dist/
-build/
+# Logs
+logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+node_modules
+dist
+dist-ssr
+*.local
 
-# OS
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
 .DS_Store
-Thumbs.db
-
-# Database
-*.db
-*.sqlite
-
-# Prisma
-backend/src/generated/
-
-# Frontend
-frontend/.vite/
-frontend/dist/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
