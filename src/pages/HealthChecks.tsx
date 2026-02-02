@@ -177,14 +177,28 @@ export default function HealthChecks() {
           return row.lastAssignment?.log_ts || '';
       }
     };
-    const sorted = [...healthRows].sort((a, b) => {
+
+    // Rows with any health data stay in the main sort; rows with no info go to the bottom.
+    const hasInfo = (row: HealthRow) =>
+      Boolean(row.lastLog || row.lastSuccess || row.lastAssignment);
+
+    const withInfo = healthRows.filter(hasInfo);
+    const withoutInfo = healthRows.filter((row) => !hasInfo(row));
+
+    const sortedWithInfo = [...withInfo].sort((a, b) => {
       const va = normalize(getVal(a, sortKey));
       const vb = normalize(getVal(b, sortKey));
       if (va < vb) return -1;
       if (va > vb) return 1;
       return 0;
     });
-    return sortDir === 'asc' ? sorted : sorted.reverse();
+
+    const orderedWithInfo = sortDir === 'asc' ? sortedWithInfo : sortedWithInfo.reverse();
+
+    // Keep unknowns stable (by device id) but always after known rows.
+    const stableWithoutInfo = [...withoutInfo].sort((a, b) => a.device.id.localeCompare(b.device.id));
+
+    return [...orderedWithInfo, ...stableWithoutInfo];
   }, [healthRows, sortDir, sortKey]);
 
   const renderRowStyle = (state: HealthRow['healthState']) => {

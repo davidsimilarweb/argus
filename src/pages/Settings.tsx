@@ -3,7 +3,16 @@ import { useSettings } from '../contexts/SettingsContext';
 import { useToast } from '../hooks/useToast';
 
 export default function Settings() {
-  const { availableModels, baseIp, allowedCountries, setAvailableModels, setBaseIp, setAllowedCountries } = useSettings();
+  const {
+    availableModels,
+    baseIp,
+    allowedCountries,
+    healthGraceMinutes,
+    setAvailableModels,
+    setBaseIp,
+    setAllowedCountries,
+    setHealthGraceMinutes,
+  } = useSettings();
   const { showToast, ToastContainer } = useToast();
 
   const apiProxyTarget = import.meta.env.VITE_ARGUS_PROXY_TARGET || 'https://ios-sdk-server-staging.42matters.com';
@@ -13,6 +22,7 @@ export default function Settings() {
   const [baseIpValue, setBaseIpValue] = useState(baseIp);
   const [editingCountries, setEditingCountries] = useState(false);
   const [countriesText, setCountriesText] = useState(allowedCountries.join('\n'));
+  const [graceInput, setGraceInput] = useState(String(healthGraceMinutes));
 
   const handleSaveModels = () => {
     const models = modelsText
@@ -87,6 +97,18 @@ export default function Settings() {
     showToast('Base IP saved successfully', 'success');
   };
 
+  const handleSaveGrace = () => {
+    const parsed = parseInt(graceInput, 10);
+    if (Number.isNaN(parsed) || parsed < 0) {
+      showToast('Grace period must be a non-negative number of minutes', 'error');
+      return;
+    }
+    const clamped = Math.min(parsed, 240); // cap at 4 hours to avoid surprises
+    setHealthGraceMinutes(clamped);
+    setGraceInput(String(clamped));
+    showToast('Grace period saved', 'success');
+  };
+
   // Calculate how many octets will be entered per device
   const baseOctets = baseIp ? baseIp.split('.').length : 0;
   const remainingOctets = 4 - baseOctets;
@@ -144,6 +166,38 @@ export default function Settings() {
               {remainingOctets === 3 && 'Last 3 octets (e.g., "168.0.100" → ' + baseIp + '.168.0.100)'}
               {remainingOctets === 4 && 'Full IP address (no base prefix set)'}
             </div>
+          </div>
+        </div>
+
+        <div className="settings-section glass">
+          <div className="section-header">
+            <h3>Healthcheck Grace Period</h3>
+            <p className="section-description">
+              Ignore the most recent failure if it occurred within this window, and instead count the previous healthcheck for the device.
+            </p>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="graceMinutes">Grace period (minutes)</label>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                id="graceMinutes"
+                type="number"
+                min={0}
+                max={240}
+                step={1}
+                className="form-input"
+                value={graceInput}
+                onChange={(e) => setGraceInput(e.target.value)}
+                style={{ maxWidth: '200px' }}
+              />
+              <button className="btn-primary" onClick={handleSaveGrace}>
+                Save
+              </button>
+            </div>
+            <small style={{ color: 'rgba(255,255,255,0.6)', marginTop: '4px', display: 'block' }}>
+              Recent failures newer than this window are ignored for dashboard counts. Default: 20 minutes.
+            </small>
           </div>
         </div>
 

@@ -5,10 +5,12 @@ interface SettingsContextType {
   availableModels: string[];
   baseIp: string;
   allowedCountries: string[];
+  healthGraceMinutes: number;
   isLoading: boolean;
   setAvailableModels: (models: string[]) => void;
   setBaseIp: (ip: string) => void;
   setAllowedCountries: (countries: string[]) => void;
+  setHealthGraceMinutes: (minutes: number) => void;
 }
 
 const defaultModels = [
@@ -23,6 +25,7 @@ const STORAGE_KEYS = {
   AVAILABLE_MODELS: 'argus_available_models',
   BASE_IP: 'argus_base_ip',
   ALLOWED_COUNTRIES: 'argus_allowed_countries',
+  HEALTH_GRACE_MINUTES: 'argus_health_grace_minutes',
 };
 
 const defaultBaseIp = '192.168.0';
@@ -50,6 +53,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [availableModels, setAvailableModelsState] = useState<string[]>(defaultModels);
   const [baseIp, setBaseIpState] = useState<string>(defaultBaseIp);
   const [allowedCountries, setAllowedCountriesState] = useState<string[]>(defaultAllowedCountries);
+  const [healthGraceMinutes, setHealthGraceMinutesState] = useState<number>(20);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load settings from localStorage on mount
@@ -68,6 +72,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const storedCountries = localStorage.getItem(STORAGE_KEYS.ALLOWED_COUNTRIES);
       if (storedCountries) {
         setAllowedCountriesState(JSON.parse(storedCountries));
+      }
+
+      const storedGrace = localStorage.getItem(STORAGE_KEYS.HEALTH_GRACE_MINUTES);
+      if (storedGrace) {
+        const parsed = parseInt(storedGrace, 10);
+        if (!Number.isNaN(parsed) && parsed >= 0) {
+          setHealthGraceMinutesState(parsed);
+        }
       }
     } catch (error) {
       console.error('Failed to load settings from localStorage:', error);
@@ -91,16 +103,24 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEYS.ALLOWED_COUNTRIES, JSON.stringify(countries));
   };
 
+  const setHealthGraceMinutes = (minutes: number) => {
+    const safe = Math.max(0, Math.round(minutes));
+    setHealthGraceMinutesState(safe);
+    localStorage.setItem(STORAGE_KEYS.HEALTH_GRACE_MINUTES, String(safe));
+  };
+
   return (
     <SettingsContext.Provider
       value={{
         availableModels,
         baseIp,
         allowedCountries,
+        healthGraceMinutes,
         isLoading,
         setAvailableModels,
         setBaseIp,
         setAllowedCountries,
+        setHealthGraceMinutes,
       }}
     >
       {children}

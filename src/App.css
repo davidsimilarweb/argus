@@ -200,6 +200,7 @@ tbody tr:hover { background: rgba(255,255,255,0.03); }
 .stat-card:hover { transform: translateY(-2px); }
 .stat-card h3 { margin: 0 0 0.6rem 0; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .stat-number { font-size: 2.2rem; font-weight: 800; margin: 0; color: var(--text); text-shadow: 0 0 18px rgba(0,255,159,0.15); }
+.stat-meta { margin-top: 0.4rem; color: var(--muted); font-size: 0.9rem; }
 
 /* Large tablet/desktop downscale */
 @media (max-width: 1200px) {
