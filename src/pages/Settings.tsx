@@ -6,6 +6,8 @@ export default function Settings() {
   const { availableModels, baseIp, allowedCountries, setAvailableModels, setBaseIp, setAllowedCountries } = useSettings();
   const { showToast, ToastContainer } = useToast();
 
+  const apiProxyTarget = import.meta.env.VITE_ARGUS_PROXY_TARGET || 'https://ios-sdk-server-staging.42matters.com';
+
   const [editingModels, setEditingModels] = useState(false);
   const [modelsText, setModelsText] = useState(availableModels.join('\n'));
   const [baseIpValue, setBaseIpValue] = useState(baseIp);
@@ -252,7 +254,7 @@ export default function Settings() {
               Current API configuration details.
             </p>
           </div>
-          <div className="device-meta"><strong>API Endpoint:</strong>&nbsp;/argus (proxied to ios-sdk-server-staging.42matters.com)</div>
+          <div className="device-meta"><strong>API Endpoint:</strong>&nbsp;/argus (proxied to {apiProxyTarget})</div>
           <div className="device-meta"><strong>Authentication:</strong>&nbsp;X-Token header</div>
           <div className="device-meta"><strong>Token Source:</strong>&nbsp;`VITE_ARGUS_TOKEN` from `.env`</div>
         </div>

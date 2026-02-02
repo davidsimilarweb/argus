@@ -25,6 +25,7 @@ export default function Timeline({ events }: TimelineProps) {
       case 'status':
         return '#00ff9f';
       case 'account':
+      case 'account_id':
         return '#00d4ff';
       case 'created':
         return '#00ff9f';

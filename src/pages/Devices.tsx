@@ -160,8 +160,8 @@ export default function Devices() {
       device_model: (formData.get('device_model') as string) || null,
       ios_version: (formData.get('ios_version') as string) || null,
       static_ip: combineIp(ipSuffix),
-      current_status: (formData.get('current_status') as DeviceStatus) || 'pending',
-      current_account_id: (formData.get('current_account_id') as string) || null,
+      status: (formData.get('status') as DeviceStatus) || 'pending',
+      account_id: (formData.get('account_id') as string) || null,
       notes: (formData.get('notes') as string) || null,
       extra_data,
     };
@@ -191,8 +191,8 @@ export default function Devices() {
       device_model: (formData.get('device_model') as string) || null,
       ios_version: (formData.get('ios_version') as string) || null,
       static_ip: combineIp(ipSuffix),
-      current_status: formData.get('current_status') as DeviceStatus,
-      current_account_id: (formData.get('current_account_id') as string) || null,
+      status: formData.get('status') as DeviceStatus,
+      account_id: (formData.get('account_id') as string) || null,
       notes: (formData.get('notes') as string) || null,
       extra_data,
     };
@@ -239,13 +239,17 @@ export default function Devices() {
       device.device_model?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       device.static_ip?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus = statusFilter === 'all' || device.current_status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || device.status === statusFilter;
     const matchesType = typeFilter === 'all' || device.device_type === typeFilter;
     const matchesCountry = countryFilter === 'all' ||
       (countryFilter === 'none' ? !device.account?.country : device.account?.country === countryFilter);
 
     return matchesSearch && matchesStatus && matchesType && matchesCountry;
   });
+
+  const sortedDevices = [...filteredDevices].sort((a, b) =>
+    a.id.localeCompare(b.id, undefined, { numeric: true })
+  );
 
   // Compute next serial number suggestion
   const computeNextSerial = () => {
@@ -278,7 +282,7 @@ export default function Devices() {
           icon = '📊';
           title = `Status changed to ${entry.new_value}`;
           break;
-        case 'account':
+        case 'account_id':
           icon = '👤';
           title = entry.new_value ? `Account assigned: ${entry.new_value}` : 'Account unassigned';
           break;
@@ -417,7 +421,7 @@ export default function Devices() {
             </button>
           )}
           <span style={{ color: '#888', fontSize: '0.9rem' }}>
-            {filteredDevices.length} of {devices.length} devices
+          {sortedDevices.length} of {devices.length} devices
           </span>
         </div>
 
@@ -477,8 +481,8 @@ export default function Devices() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="current_status">Status</label>
-              <select id="current_status" name="current_status" defaultValue="pending">
+              <label htmlFor="status">Status</label>
+              <select id="status" name="status" defaultValue="pending">
                 <option value="pending">Pending</option>
                 <option value="ready">Ready</option>
                 <option value="deployed">Deployed</option>
@@ -489,8 +493,8 @@ export default function Devices() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="current_account_id">Account</label>
-              <select id="current_account_id" name="current_account_id">
+              <label htmlFor="account_id">Account</label>
+              <select id="account_id" name="account_id">
                 <option value="">No account assigned</option>
                 {accounts.map((account) => (
                   <option key={account.id} value={account.id}>
@@ -530,7 +534,7 @@ export default function Devices() {
 
         {/* Device Cards Grid */}
         <div className="card-grid">
-          {filteredDevices.map((device) => (
+          {sortedDevices.map((device) => (
             <div
               key={device.id}
               className="device-card"
@@ -538,7 +542,7 @@ export default function Devices() {
             >
               <div className="device-card-header">
                 <div className="device-id">{device.id}</div>
-                <span className={`status-badge status-${device.current_status}`}>{device.current_status}</span>
+                <span className={`status-badge status-${device.status}`}>{device.status}</span>
               </div>
               <div className="device-meta" style={{ marginTop: '0.5rem' }}>
                 <span className={`pill ${device.device_type === 'iPhone' ? 'pill-iphone' : 'pill-ipad'}`}>
@@ -550,7 +554,7 @@ export default function Devices() {
               </div>
             </div>
           ))}
-          {filteredDevices.length === 0 && (
+          {sortedDevices.length === 0 && (
             <div className="device-card" style={{ gridColumn: '1/-1', textAlign: 'center' }}>
               {devices.length === 0 ? 'No devices found. Add your first device to get started.' : 'No devices match the current filters.'}
             </div>
@@ -619,7 +623,7 @@ export default function Devices() {
                 <>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
-                      <div className="device-meta"><strong>Status:</strong>&nbsp;<span className={`status-badge status-${deviceDetail?.current_status || selectedDevice.current_status}`}>{deviceDetail?.current_status || selectedDevice.current_status}</span></div>
+                      <div className="device-meta"><strong>Status:</strong>&nbsp;<span className={`status-badge status-${deviceDetail?.status || selectedDevice.status}`}>{deviceDetail?.status || selectedDevice.status}</span></div>
                       <div className="device-meta"><strong>Serial:</strong>&nbsp;{selectedDevice.id}</div>
                       <div className="device-meta"><strong>Type:</strong>&nbsp;{deviceDetail?.device_type || selectedDevice.device_type}</div>
                       <div className="device-meta"><strong>Model:</strong>&nbsp;{deviceDetail?.device_model || selectedDevice.device_model || '-'}</div>
@@ -869,8 +873,8 @@ export default function Devices() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="current_status">Status *</label>
-              <select id="current_status" name="current_status" required defaultValue={selectedDevice?.current_status || 'pending'}>
+              <label htmlFor="status">Status *</label>
+              <select id="status" name="status" required defaultValue={selectedDevice?.status || 'pending'}>
                 <option value="pending">Pending</option>
                 <option value="ready">Ready</option>
                 <option value="deployed">Deployed</option>
@@ -881,8 +885,12 @@ export default function Devices() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="current_account_id">Account</label>
-              <select id="current_account_id" name="current_account_id" defaultValue={selectedDevice?.current_account_id || ''}>
+              <label htmlFor="account_id">Account</label>
+              <select
+                id="account_id"
+                name="account_id"
+                defaultValue={selectedDevice?.account_id ?? selectedDevice?.account?.id ?? ''}
+              >
                 <option value="">No account assigned</option>
                 {accounts.map((account) => (
                   <option key={account.id} value={account.id}>{account.id}</option>

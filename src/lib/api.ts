@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { AxiosResponse } from 'axios';
 
 // API configuration for the new Argus backend
 // Uses relative URL to go through the proxy (avoids CORS issues)
@@ -16,8 +17,24 @@ export const api = axios.create({
   },
 });
 
+// Separate client for internal crawler endpoints
+const internalApi = axios.create({
+  baseURL: '/internal',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 // Add auth header interceptor
 api.interceptors.request.use((config) => {
+  const token = getAuthToken();
+  if (token) {
+    config.headers['X-Token'] = token;
+  }
+  return config;
+});
+
+internalApi.interceptors.request.use((config) => {
   const token = getAuthToken();
   if (token) {
     config.headers['X-Token'] = token;
@@ -28,7 +45,14 @@ api.interceptors.request.use((config) => {
 // Enums matching the backend
 export type DeviceType = 'iPhone' | 'iPad';
 export type DeviceStatus = 'pending' | 'ready' | 'deployed' | 'broken' | 'testing' | 'lab_support';
-export type ChangeType = 'created' | 'status' | 'account' | 'ios_version' | 'device_model' | 'notes' | 'other';
+export type ChangeType =
+  | 'created'
+  | 'status'
+  | 'account_id'
+  | 'ios_version'
+  | 'device_model'
+  | 'notes'
+  | 'other';
 
 // Metadata type - flexible JSON object for extensibility
 export type DeviceMetadata = Record<string, unknown>;
@@ -40,8 +64,8 @@ export interface Device {
   device_model: string | null;
   ios_version: string | null;
   static_ip: string | null;
-  current_status: DeviceStatus;
-  current_account_id: string | null;
+  status: DeviceStatus;
+  account_id: string | null;
   notes: string | null;
   extra_data: DeviceMetadata | null;
   created_at: string;
@@ -68,7 +92,7 @@ export interface DeviceSummary {
   device_model: string | null;
   ios_version: string | null;
   static_ip: string | null;
-  current_status: DeviceStatus;
+  status: DeviceStatus;
   notes: string | null;
   extra_data: DeviceMetadata | null;
   created_at: string;
@@ -78,6 +102,7 @@ export interface DeviceSummary {
 // History types
 export interface HistoryEntry {
   id: string;
+  device_id: string;
   change_type: ChangeType;
   old_value: string | null;
   new_value: string | null;
@@ -87,10 +112,21 @@ export interface HistoryEntry {
 }
 
 export interface DeviceHistory {
-  // Backend returns `id` per latest spec; keep `device_id` optional for backward compatibility
-  id?: string;
-  device_id?: string;
+  id: string;
   history: HistoryEntry[];
+}
+
+// Health check / crawler logs
+export interface CrawlerLog {
+  log_ts: string;
+  log_type: string;
+  reason?: string | null;
+  [key: string]: unknown;
+}
+
+export interface DeviceCrawlerLogs {
+  device_id: string;
+  logs: CrawlerLog[];
 }
 
 // Request types
@@ -100,8 +136,8 @@ export interface CreateDeviceRequest {
   device_model?: string | null;
   ios_version?: string | null;
   static_ip?: string | null;
-  current_status?: DeviceStatus; // Defaults to 'pending'
-  current_account_id?: string | null;
+  status?: DeviceStatus; // Defaults to 'pending'
+  account_id?: string | null;
   notes?: string | null;
   extra_data?: DeviceMetadata | null;
 }
@@ -111,8 +147,8 @@ export interface UpdateDeviceRequest {
   device_model?: string | null;
   ios_version?: string | null;
   static_ip?: string | null;
-  current_status?: DeviceStatus | null;
-  current_account_id?: string | null;
+  status?: DeviceStatus | null;
+  account_id?: string | null;
   notes?: string | null;
   extra_data?: DeviceMetadata | null;
 }
@@ -132,24 +168,72 @@ export interface UpdateAccountRequest {
   notes?: string | null;
 }
 
+// Normalize backend responses in case some fields are omitted.
+// We’ve seen cases where `account` is present but `account_id` is missing.
+function normalizeDevice(raw: any): Device {
+  const account = raw?.account ?? null;
+  const account_id =
+    raw?.account_id !== undefined
+      ? raw.account_id
+      : account?.id !== undefined
+        ? account.id
+        : null;
+
+  return {
+    ...raw,
+    account,
+    account_id,
+  } as Device;
+}
+
+function normalizeAccount(raw: any): Account {
+  const devices = Array.isArray(raw?.devices) ? raw.devices.map(normalizeDevice) : raw?.devices;
+  return {
+    ...raw,
+    devices,
+  } as Account;
+}
+
 // API methods for devices
 export const deviceApi = {
-  getAll: () => api.get<Device[]>('/devices'),
-  getById: (deviceId: string) => api.get<Device>(`/devices/${encodeURIComponent(deviceId)}`),
+  getAll: async () => {
+    const res = await api.get<any[]>('/devices');
+    return { ...res, data: res.data.map(normalizeDevice) } as AxiosResponse<Device[]>;
+  },
+  getById: async (deviceId: string) => {
+    const res = await api.get<any>(`/devices/${encodeURIComponent(deviceId)}`);
+    return { ...res, data: normalizeDevice(res.data) } as AxiosResponse<Device>;
+  },
   getHistory: (deviceId: string) => api.get<DeviceHistory>(`/devices/${encodeURIComponent(deviceId)}/history`),
-  create: (data: CreateDeviceRequest) => api.post<Device>('/devices', data),
-  update: (deviceId: string, data: UpdateDeviceRequest) => 
-    api.put<Device>(`/devices/${encodeURIComponent(deviceId)}`, data),
+  getCrawlerLogs: (deviceId: string) =>
+    internalApi.get<DeviceCrawlerLogs>(`/crawler-logs/${encodeURIComponent(deviceId)}`),
+  getCrawlerLogsAll: (params?: { days?: number | null; limit?: number }) =>
+    internalApi.get<DeviceCrawlerLogs[]>('/crawler-logs', {
+      params: {
+        ...(params?.days !== undefined ? { days: params.days } : {}),
+        ...(params?.limit !== undefined ? { limit: params.limit } : {}),
+      },
+    }),
+  create: async (data: CreateDeviceRequest) => {
+    const res = await api.post<any>('/devices', data);
+    return { ...res, data: normalizeDevice(res.data) } as AxiosResponse<Device>;
+  },
+  update: async (deviceId: string, data: UpdateDeviceRequest) => {
+    const res = await api.put<any>(`/devices/${encodeURIComponent(deviceId)}`, data);
+    return { ...res, data: normalizeDevice(res.data) } as AxiosResponse<Device>;
+  },
   delete: (deviceId: string) => api.delete<Device>(`/devices/${encodeURIComponent(deviceId)}`),
 };
 
 // API methods for accounts
 export const accountApi = {
   getAll: () => api.get<Account[]>('/accounts'),
-  getById: (accountId: string, includeDevices = false) => 
-    api.get<Account>(`/accounts/${encodeURIComponent(accountId)}`, {
+  getById: async (accountId: string, includeDevices = false) => {
+    const res = await api.get<any>(`/accounts/${encodeURIComponent(accountId)}`, {
       params: includeDevices ? { include_devices: true } : undefined,
-    }),
+    });
+    return { ...res, data: normalizeAccount(res.data) } as AxiosResponse<Account>;
+  },
   create: (data: CreateAccountRequest) => api.post<Account>('/accounts', data),
   update: (accountId: string, data: UpdateAccountRequest) => 
     api.put<Account>(`/accounts/${encodeURIComponent(accountId)}`, data),

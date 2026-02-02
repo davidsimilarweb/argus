@@ -9,6 +9,7 @@ import Devices from './pages/Devices';
 import Accounts from './pages/Accounts';
 import Scan from './pages/Scan';
 import Settings from './pages/Settings';
+import HealthChecks from './pages/HealthChecks';
 import Logo from './components/Logo';
 import ScanFab from './components/ScanFab';
 
@@ -42,6 +43,7 @@ function AppShell() {
           <Link className="side-link" to="/devices" style={isActive('/devices')} onClick={() => setIsSidebarOpen(false)}>Devices</Link>
           <Link className="side-link" to="/accounts" style={isActive('/accounts')} onClick={() => setIsSidebarOpen(false)}>Accounts</Link>
           <Link className="side-link" to="/scan" style={isActive('/scan')} onClick={() => setIsSidebarOpen(false)}>Scan</Link>
+          <Link className="side-link" to="/health-checks" style={isActive('/health-checks')} onClick={() => setIsSidebarOpen(false)}>Health Checks</Link>
           <Link className="side-link" to="/settings" style={isActive('/settings')} onClick={() => setIsSidebarOpen(false)}>Settings</Link>
         </nav>
       </aside>
@@ -61,6 +63,7 @@ function AppShell() {
           <Route path="/devices" element={<Devices />} />
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/scan" element={<Scan />} />
+          <Route path="/health-checks" element={<HealthChecks />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>

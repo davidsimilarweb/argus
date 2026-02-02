@@ -42,6 +42,13 @@ export default function Accounts() {
     enabled: !!selectedAccount?.id && isDetailsOpen,
   });
 
+  const countryOptions = (() => {
+    const current = accountDetail?.country || selectedAccount?.country;
+    if (!allowedCountries.length) return [];
+    if (current && !allowedCountries.includes(current)) return [current, ...allowedCountries];
+    return allowedCountries;
+  })();
+
   const createMutation = useMutation({
     mutationFn: (data: Parameters<typeof accountApi.create>[0]) => accountApi.create(data),
     onSuccess: () => {
@@ -354,8 +361,8 @@ export default function Accounts() {
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontWeight: 600 }}>{device.id}</span>
-                          <span className={`status-badge status-${device.current_status}`} style={{ fontSize: '0.8rem' }}>
-                            {device.current_status}
+                          <span className={`status-badge status-${device.status}`} style={{ fontSize: '0.8rem' }}>
+                            {device.status}
                           </span>
                         </div>
                         <div style={{ fontSize: '0.85rem', color: '#888', marginTop: '0.25rem' }}>
@@ -368,7 +375,16 @@ export default function Accounts() {
               )}
 
               <div className="form-actions" style={{ marginTop: '1.5rem' }}>
-                <button type="button" className="btn-primary" onClick={() => { setIsDetailsOpen(false); setIsEditModalOpen(true); }}>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => {
+                    // Prefer the detailed record (it may have fields not present in list view)
+                    if (accountDetail) setSelectedAccount(accountDetail);
+                    setIsDetailsOpen(false);
+                    setIsEditModalOpen(true);
+                  }}
+                >
                   Edit Account
                 </button>
                 <button
@@ -399,7 +415,7 @@ export default function Accounts() {
               {allowedCountries.length > 0 ? (
                 <select id="country" name="country" defaultValue={selectedAccount?.country || ''}>
                   <option value="">No country</option>
-                  {allowedCountries.map((c) => (
+                  {countryOptions.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>

@@ -20,12 +20,12 @@ export default function Dashboard() {
 
   const stats = {
     totalDevices: devices.length,
-    pending: devices.filter(d => d.current_status === 'pending').length,
-    ready: devices.filter(d => d.current_status === 'ready').length,
-    deployed: devices.filter(d => d.current_status === 'deployed').length,
-    broken: devices.filter(d => d.current_status === 'broken').length,
-    testing: devices.filter(d => d.current_status === 'testing').length,
-    labSupport: devices.filter(d => d.current_status === 'lab_support').length,
+    pending: devices.filter(d => d.status === 'pending').length,
+    ready: devices.filter(d => d.status === 'ready').length,
+    deployed: devices.filter(d => d.status === 'deployed').length,
+    broken: devices.filter(d => d.status === 'broken').length,
+    testing: devices.filter(d => d.status === 'testing').length,
+    labSupport: devices.filter(d => d.status === 'lab_support').length,
     totalAccounts: accounts.length,
   };
 
