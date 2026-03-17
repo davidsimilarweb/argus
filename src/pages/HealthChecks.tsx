@@ -95,6 +95,7 @@ export default function HealthChecks() {
   const { ToastContainer, showToast } = useToast();
   const [sortKey, setSortKey] = useState<SortKey>('device');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [stateFilter, setStateFilter] = useState<'all' | HealthRow['healthState']>('all');
 
   const { data: devices = [], isLoading: isDevicesLoading, error: devicesError } = useQuery({
     queryKey: ['devices'],
@@ -201,6 +202,17 @@ export default function HealthChecks() {
     return [...orderedWithInfo, ...stableWithoutInfo];
   }, [healthRows, sortDir, sortKey]);
 
+  const filteredRows = useMemo(
+    () => stateFilter === 'all' ? sortedRows : sortedRows.filter((row) => row.healthState === stateFilter),
+    [sortedRows, stateFilter]
+  );
+
+  const stateCounts = useMemo(() => {
+    const counts = { all: healthRows.length, success: 0, failure: 0, unknown: 0 };
+    for (const row of healthRows) counts[row.healthState]++;
+    return counts;
+  }, [healthRows]);
+
   const renderRowStyle = (state: HealthRow['healthState']) => {
     switch (state) {
       case 'success':
@@ -225,9 +237,53 @@ export default function HealthChecks() {
             {isLogsLoading || isLogsRefetching ? 'Refreshing…' : 'Refresh'}
           </button>
           <span style={{ color: '#888', fontSize: '0.9rem' }}>
-            {devices.length} devices
+            {stateFilter === 'all' ? devices.length : filteredRows.length} / {devices.length} devices
           </span>
         </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        {(['all', 'success', 'failure', 'unknown'] as const).map((value) => {
+          const isActive = stateFilter === value;
+          const colorMap: Record<string, string> = {
+            all: '#888',
+            success: 'rgba(0,255,159,0.85)',
+            failure: 'rgba(255,85,99,0.85)',
+            unknown: 'rgba(255,255,255,0.5)',
+          };
+          const bgMap: Record<string, string> = {
+            all: 'rgba(255,255,255,0.08)',
+            success: 'rgba(0,255,159,0.12)',
+            failure: 'rgba(255,85,99,0.12)',
+            unknown: 'rgba(255,255,255,0.06)',
+          };
+          const activeBgMap: Record<string, string> = {
+            all: 'rgba(255,255,255,0.18)',
+            success: 'rgba(0,255,159,0.25)',
+            failure: 'rgba(255,85,99,0.25)',
+            unknown: 'rgba(255,255,255,0.15)',
+          };
+          return (
+            <button
+              key={value}
+              onClick={() => setStateFilter(value)}
+              style={{
+                padding: '0.35rem 0.85rem',
+                borderRadius: '999px',
+                border: isActive ? `1px solid ${colorMap[value]}` : '1px solid transparent',
+                background: isActive ? activeBgMap[value] : bgMap[value],
+                color: isActive ? colorMap[value] : '#888',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                fontWeight: isActive ? 600 : 400,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {value === 'all' ? 'All' : value.charAt(0).toUpperCase() + value.slice(1)}{' '}
+              <span style={{ opacity: 0.7 }}>({stateCounts[value]})</span>
+            </button>
+          );
+        })}
       </div>
 
       {logsError && (
@@ -268,7 +324,7 @@ export default function HealthChecks() {
               </tr>
             </thead>
             <tbody>
-              {sortedRows.map((row) => (
+              {filteredRows.map((row) => (
                 <tr key={row.device.id} style={{ ...renderRowStyle(row.healthState) }}>
                   <td style={{ padding: '0.75rem', fontWeight: 600 }}>{row.device.id}</td>
                   <td style={{ padding: '0.75rem', color: '#ccc' }}>{row.device.account?.country || '—'}</td>

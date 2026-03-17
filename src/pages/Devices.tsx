@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { deviceApi, accountApi, type Device, type DeviceType, type DeviceStatus } from '../lib/api';
+import { compileDeviceExpression } from '../lib/deviceExpressionFilter';
 import Modal from '../components/Modal';
 import Timeline from '../components/Timeline';
 import { useToast } from '../hooks/useToast';
@@ -20,6 +21,12 @@ export default function Devices() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [countryFilter, setCountryFilter] = useState<string>('all');
+  const [isAdvancedFilterOpen, setIsAdvancedFilterOpen] = useState(false);
+  const [advancedFilterDraft, setAdvancedFilterDraft] = useState('');
+  const [advancedFilterExpression, setAdvancedFilterExpression] = useState('');
+  const [advancedFilterEnabled, setAdvancedFilterEnabled] = useState(false);
+  const [advancedFilterError, setAdvancedFilterError] = useState<string | null>(null);
+  const [advancedFilterPredicate, setAdvancedFilterPredicate] = useState<((device: Device) => boolean) | null>(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -206,6 +213,41 @@ export default function Devices() {
     }
   };
 
+  const openAdvancedFilterModal = () => {
+    setAdvancedFilterDraft(advancedFilterExpression);
+    setAdvancedFilterError(null);
+    setIsAdvancedFilterOpen(true);
+  };
+
+  const applyAdvancedFilter = () => {
+    const expression = advancedFilterDraft.trim();
+    if (!expression) {
+      setAdvancedFilterError('Expression cannot be empty.');
+      return;
+    }
+
+    const { predicate, error: compileError } = compileDeviceExpression(expression);
+    if (!predicate || compileError) {
+      const message = compileError || 'Invalid expression.';
+      setAdvancedFilterError(message);
+      showToast(`Advanced filter error: ${message}`, 'error');
+      return;
+    }
+
+    setAdvancedFilterExpression(expression);
+    setAdvancedFilterPredicate(() => predicate);
+    setAdvancedFilterEnabled(true);
+    setAdvancedFilterError(null);
+    setIsAdvancedFilterOpen(false);
+  };
+
+  const disableAdvancedFilter = () => {
+    setAdvancedFilterEnabled(false);
+    setAdvancedFilterPredicate(null);
+    setAdvancedFilterError(null);
+    setIsAdvancedFilterOpen(false);
+  };
+
   // Open device modal if device ID is in URL
   useEffect(() => {
     if (deviceIdFromUrl && devices.length > 0) {
@@ -220,8 +262,36 @@ export default function Devices() {
     }
   }, [deviceIdFromUrl, devices, navigate, showToast]);
 
-  // Get unique countries from devices' assigned accounts with counts
-  const countryCounts = devices.reduce((acc, device) => {
+  const normalizedSearchQuery = searchQuery.toLowerCase();
+
+  const matchesFiltersExceptCountry = (device: Device) => {
+    const matchesSearch = searchQuery === '' ||
+      device.id.toLowerCase().includes(normalizedSearchQuery) ||
+      device.device_model?.toLowerCase().includes(normalizedSearchQuery) ||
+      device.static_ip?.toLowerCase().includes(normalizedSearchQuery);
+
+    const matchesStatus = statusFilter === 'all' || device.status === statusFilter;
+    const matchesType = typeFilter === 'all' || device.device_type === typeFilter;
+    const matchesAdvancedExpression =
+      !advancedFilterEnabled ||
+      !advancedFilterPredicate ||
+      advancedFilterPredicate(device);
+
+    return matchesSearch && matchesStatus && matchesType && matchesAdvancedExpression;
+  };
+
+  const uniqueCountries = Array.from(
+    new Set(
+      devices
+        .map((device) => device.account?.country)
+        .filter((country): country is string => Boolean(country))
+    )
+  ).sort();
+
+  // Facet counts should respect active filters (except country itself).
+  const devicesMatchingNonCountryFilters = devices.filter(matchesFiltersExceptCountry);
+
+  const countryCounts = devicesMatchingNonCountryFilters.reduce((acc, device) => {
     const country = device.account?.country;
     if (country) {
       acc[country] = (acc[country] || 0) + 1;
@@ -229,22 +299,13 @@ export default function Devices() {
     return acc;
   }, {} as Record<string, number>);
 
-  const uniqueCountries = Object.keys(countryCounts).sort();
-  const noCountryCount = devices.filter(d => !d.account?.country).length;
+  const noCountryCount = devicesMatchingNonCountryFilters.filter((device) => !device.account?.country).length;
 
-  // Filter devices based on search and filter criteria
-  const filteredDevices = devices.filter((device) => {
-    const matchesSearch = searchQuery === '' ||
-      device.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      device.device_model?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      device.static_ip?.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesStatus = statusFilter === 'all' || device.status === statusFilter;
-    const matchesType = typeFilter === 'all' || device.device_type === typeFilter;
+  // Final result includes selected country filter on top of all other filters.
+  const filteredDevices = devicesMatchingNonCountryFilters.filter((device) => {
     const matchesCountry = countryFilter === 'all' ||
       (countryFilter === 'none' ? !device.account?.country : device.account?.country === countryFilter);
-
-    return matchesSearch && matchesStatus && matchesType && matchesCountry;
+    return matchesCountry;
   });
 
   const sortedDevices = [...filteredDevices].sort((a, b) =>
@@ -396,16 +457,50 @@ export default function Devices() {
             <option value="all">All Countries</option>
             <option value="none">No Country ({noCountryCount})</option>
             {uniqueCountries.map((country) => (
-              <option key={country} value={country}>{country} ({countryCounts[country]})</option>
+              <option key={country} value={country}>{country} ({countryCounts[country] ?? 0})</option>
             ))}
           </select>
-          {(searchQuery || statusFilter !== 'all' || typeFilter !== 'all' || countryFilter !== 'all') && (
+          <button
+            onClick={openAdvancedFilterModal}
+            style={{
+              padding: '0.65rem 0.9rem',
+              border: advancedFilterEnabled ? '1px solid rgba(0,229,255,0.35)' : 'var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              background: advancedFilterEnabled ? 'rgba(0,229,255,0.12)' : 'rgba(255,255,255,0.04)',
+              color: advancedFilterEnabled ? '#00e5ff' : 'var(--text)',
+              fontSize: '0.95rem',
+              cursor: 'pointer'
+            }}
+          >
+            {advancedFilterEnabled ? 'Advanced Filter On' : 'Advanced Filter'}
+          </button>
+          {advancedFilterEnabled && (
+            <span
+              title={advancedFilterExpression}
+              style={{
+                color: '#00e5ff',
+                fontSize: '0.82rem',
+                maxWidth: '320px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {advancedFilterExpression}
+            </span>
+          )}
+          {(searchQuery || statusFilter !== 'all' || typeFilter !== 'all' || countryFilter !== 'all' || advancedFilterEnabled) && (
             <button
               onClick={() => {
                 setSearchQuery('');
                 setStatusFilter('all');
                 setTypeFilter('all');
                 setCountryFilter('all');
+                setAdvancedFilterEnabled(false);
+                setAdvancedFilterExpression('');
+                setAdvancedFilterDraft('');
+                setAdvancedFilterPredicate(null);
+                setAdvancedFilterError(null);
               }}
               style={{
                 padding: '0.65rem 0.9rem',
@@ -424,6 +519,93 @@ export default function Devices() {
           {sortedDevices.length} of {devices.length} devices
           </span>
         </div>
+
+        <Modal
+          isOpen={isAdvancedFilterOpen}
+          onClose={() => {
+            setIsAdvancedFilterOpen(false);
+            setAdvancedFilterError(null);
+          }}
+          title="Advanced Filter (Unsafe JS)"
+        >
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            <div style={{
+              padding: '0.75rem',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid rgba(255,85,99,0.35)',
+              background: 'rgba(255,85,99,0.12)',
+              color: '#ff9aa3',
+              fontSize: '0.88rem'
+            }}>
+              This mode executes raw JavaScript in your browser. Use only trusted expressions.
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label htmlFor="advanced_filter_expression">Expression (runs against each device object)</label>
+              <textarea
+                id="advanced_filter_expression"
+                value={advancedFilterDraft}
+                onChange={(e) => setAdvancedFilterDraft(e.target.value)}
+                placeholder={`extra_data?.flag1 == 1\nstatus === 'ready' && extra_data?.region === 'US'`}
+                rows={5}
+                style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
+              />
+              <small>
+                Examples: <code>extra_data?.flag1 == 1</code>, <code>status === 'ready'</code>, <code>account?.country === 'US'</code>
+              </small>
+            </div>
+
+            {advancedFilterError && (
+              <div style={{
+                padding: '0.65rem 0.75rem',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid rgba(255,85,99,0.35)',
+                background: 'rgba(255,85,99,0.12)',
+                color: '#ff9aa3',
+                fontSize: '0.88rem'
+              }}>
+                {advancedFilterError}
+              </div>
+            )}
+
+            <div style={{
+              padding: '0.75rem',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              background: 'rgba(0,0,0,0.22)',
+              fontSize: '0.82rem',
+              color: '#9aa3ad'
+            }}>
+              Available fields include: <code>id</code>, <code>status</code>, <code>device_type</code>, <code>device_model</code>, <code>static_ip</code>, <code>account</code>, <code>extra_data</code>, <code>created_at</code>, <code>updated_at</code>.
+            </div>
+
+            <div className="form-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setIsAdvancedFilterOpen(false);
+                  setAdvancedFilterError(null);
+                }}
+              >
+                Cancel
+              </button>
+              {advancedFilterEnabled && (
+                <button
+                  type="button"
+                  className="btn-action"
+                  style={{ borderColor: '#ffb347', color: '#ffb347', background: 'rgba(255,179,71,0.15)' }}
+                  onClick={disableAdvancedFilter}
+                >
+                  Disable Filter
+                </button>
+              )}
+              <button type="button" className="btn-primary" onClick={applyAdvancedFilter}>
+                Apply Filter
+              </button>
+            </div>
+          </div>
+        </Modal>
 
         {/* Add Device Modal */}
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add Device">
