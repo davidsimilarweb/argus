@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { deviceApi, type Device, type CrawlerLog, type DeviceCrawlerLogs } from '../lib/api';
+import { compileExpression } from '../lib/expressionFilter';
+import Modal from '../components/Modal';
 import { useToast } from '../hooks/useToast';
 
 type HealthRow = {
@@ -96,6 +98,17 @@ export default function HealthChecks() {
   const [sortKey, setSortKey] = useState<SortKey>('device');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [stateFilter, setStateFilter] = useState<'all' | HealthRow['healthState']>('all');
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [countryFilter, setCountryFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('deployed');
+  const [isAdvancedFilterOpen, setIsAdvancedFilterOpen] = useState(false);
+  const [advancedFilterDraft, setAdvancedFilterDraft] = useState('');
+  const [advancedFilterExpression, setAdvancedFilterExpression] = useState('');
+  const [advancedFilterEnabled, setAdvancedFilterEnabled] = useState(false);
+  const [advancedFilterError, setAdvancedFilterError] = useState<string | null>(null);
+  const [advancedFilterPredicate, setAdvancedFilterPredicate] = useState<((row: HealthRow) => boolean) | null>(null);
 
   const { data: devices = [], isLoading: isDevicesLoading, error: devicesError } = useQuery({
     queryKey: ['devices'],
@@ -202,10 +215,114 @@ export default function HealthChecks() {
     return [...orderedWithInfo, ...stableWithoutInfo];
   }, [healthRows, sortDir, sortKey]);
 
-  const filteredRows = useMemo(
-    () => stateFilter === 'all' ? sortedRows : sortedRows.filter((row) => row.healthState === stateFilter),
-    [sortedRows, stateFilter]
+  const openAdvancedFilterModal = () => {
+    setAdvancedFilterDraft(advancedFilterExpression);
+    setAdvancedFilterError(null);
+    setIsAdvancedFilterOpen(true);
+  };
+
+  const applyAdvancedFilter = () => {
+    const expression = advancedFilterDraft.trim();
+    if (!expression) {
+      setAdvancedFilterError('Expression cannot be empty.');
+      return;
+    }
+    const { predicate, error: compileError } = compileExpression<HealthRow>(expression);
+    if (!predicate || compileError) {
+      setAdvancedFilterError(compileError || 'Invalid expression.');
+      showToast(`Advanced filter error: ${compileError || 'Invalid expression.'}`, 'error');
+      return;
+    }
+    setAdvancedFilterExpression(expression);
+    setAdvancedFilterPredicate(() => predicate);
+    setAdvancedFilterEnabled(true);
+    setAdvancedFilterError(null);
+    setIsAdvancedFilterOpen(false);
+  };
+
+  const disableAdvancedFilter = () => {
+    setAdvancedFilterEnabled(false);
+    setAdvancedFilterPredicate(null);
+    setAdvancedFilterError(null);
+    setIsAdvancedFilterOpen(false);
+  };
+
+  const clearAllFilters = () => {
+    setSearchQuery('');
+    setStateFilter('all');
+    setCountryFilter('all');
+    setTypeFilter('all');
+    setStatusFilter('all');
+    setAdvancedFilterEnabled(false);
+    setAdvancedFilterExpression('');
+    setAdvancedFilterDraft('');
+    setAdvancedFilterPredicate(null);
+    setAdvancedFilterError(null);
+  };
+
+  const hasActiveFilters =
+    searchQuery !== '' ||
+    stateFilter !== 'all' ||
+    countryFilter !== 'all' ||
+    typeFilter !== 'all' ||
+    statusFilter !== 'all' ||
+    advancedFilterEnabled;
+
+  const normalizedSearch = searchQuery.toLowerCase();
+
+  const uniqueCountries = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          healthRows
+            .map((r) => r.device.account?.country)
+            .filter((c): c is string => Boolean(c)),
+        ),
+      ).sort(),
+    [healthRows],
   );
+
+  const filteredRows = useMemo(() => {
+    return sortedRows.filter((row) => {
+      if (stateFilter !== 'all' && row.healthState !== stateFilter) return false;
+
+      if (normalizedSearch) {
+        const id = row.device.id.toLowerCase();
+        const model = (row.device.device_model || '').toLowerCase();
+        const ip = (row.device.static_ip || '').toLowerCase();
+        const country = (row.device.account?.country || '').toLowerCase();
+        if (
+          !id.includes(normalizedSearch) &&
+          !model.includes(normalizedSearch) &&
+          !ip.includes(normalizedSearch) &&
+          !country.includes(normalizedSearch)
+        )
+          return false;
+      }
+
+      if (countryFilter !== 'all') {
+        const deviceCountry = row.device.account?.country || '';
+        if (countryFilter === 'none' ? deviceCountry : deviceCountry !== countryFilter) return false;
+      }
+
+      if (typeFilter !== 'all' && row.device.device_type !== typeFilter) return false;
+      if (statusFilter !== 'all' && row.device.status !== statusFilter) return false;
+
+      if (advancedFilterEnabled && advancedFilterPredicate && !advancedFilterPredicate(row))
+        return false;
+
+      return true;
+    });
+  }, [
+    sortedRows,
+    stateFilter,
+    normalizedSearch,
+    countryFilter,
+    typeFilter,
+    statusFilter,
+    advancedFilterEnabled,
+    advancedFilterPredicate,
+  ]);
 
   const stateCounts = useMemo(() => {
     const counts = { all: healthRows.length, success: 0, failure: 0, unknown: 0 };
@@ -236,13 +353,11 @@ export default function HealthChecks() {
           <button className="btn-primary" onClick={handleRefresh} disabled={isLogsLoading || isLogsRefetching}>
             {isLogsLoading || isLogsRefetching ? 'Refreshing…' : 'Refresh'}
           </button>
-          <span style={{ color: '#888', fontSize: '0.9rem' }}>
-            {stateFilter === 'all' ? devices.length : filteredRows.length} / {devices.length} devices
-          </span>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+      {/* Health state pills */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
         {(['all', 'success', 'failure', 'unknown'] as const).map((value) => {
           const isActive = stateFilter === value;
           const colorMap: Record<string, string> = {
@@ -285,6 +400,219 @@ export default function HealthChecks() {
           );
         })}
       </div>
+
+      {/* Filters bar */}
+      <div style={{
+        display: 'flex',
+        gap: '0.75rem',
+        marginBottom: '1rem',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+      }}>
+        <input
+          type="text"
+          placeholder="Search by device, model, IP, country…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{
+            flex: '1 1 240px',
+            padding: '0.55rem 0.8rem',
+            border: 'var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'rgba(255,255,255,0.04)',
+            color: 'var(--text)',
+            fontSize: '0.9rem',
+          }}
+        />
+        <select
+          value={countryFilter}
+          onChange={(e) => setCountryFilter(e.target.value)}
+          style={{
+            padding: '0.55rem 0.8rem',
+            border: 'var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'rgba(255,255,255,0.04)',
+            color: 'var(--text)',
+            fontSize: '0.9rem',
+          }}
+        >
+          <option value="all">All Countries</option>
+          <option value="none">No Country</option>
+          {uniqueCountries.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          style={{
+            padding: '0.55rem 0.8rem',
+            border: 'var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'rgba(255,255,255,0.04)',
+            color: 'var(--text)',
+            fontSize: '0.9rem',
+          }}
+        >
+          <option value="all">All Types</option>
+          <option value="iPhone">iPhone</option>
+          <option value="iPad">iPad</option>
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          style={{
+            padding: '0.55rem 0.8rem',
+            border: 'var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'rgba(255,255,255,0.04)',
+            color: 'var(--text)',
+            fontSize: '0.9rem',
+          }}
+        >
+          <option value="all">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="ready">Ready</option>
+          <option value="deployed">Deployed</option>
+          <option value="broken">Broken</option>
+          <option value="testing">Testing</option>
+          <option value="lab_support">Lab Support</option>
+        </select>
+        <button
+          onClick={openAdvancedFilterModal}
+          style={{
+            padding: '0.55rem 0.8rem',
+            border: advancedFilterEnabled ? '1px solid rgba(0,229,255,0.35)' : 'var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            background: advancedFilterEnabled ? 'rgba(0,229,255,0.12)' : 'rgba(255,255,255,0.04)',
+            color: advancedFilterEnabled ? '#00e5ff' : 'var(--text)',
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+          }}
+        >
+          {advancedFilterEnabled ? 'Advanced Filter On' : 'Advanced Filter'}
+        </button>
+        {advancedFilterEnabled && (
+          <span
+            title={advancedFilterExpression}
+            style={{
+              color: '#00e5ff',
+              fontSize: '0.82rem',
+              maxWidth: '280px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {advancedFilterExpression}
+          </span>
+        )}
+        {hasActiveFilters && (
+          <button
+            onClick={clearAllFilters}
+            style={{
+              padding: '0.55rem 0.8rem',
+              border: '1px solid rgba(255,85,99,0.35)',
+              borderRadius: 'var(--radius-sm)',
+              background: 'rgba(255,85,99,0.10)',
+              color: '#ff5563',
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+            }}
+          >
+            Clear Filters
+          </button>
+        )}
+        <span style={{ color: '#888', fontSize: '0.9rem' }}>
+          {filteredRows.length} / {devices.length} devices
+        </span>
+      </div>
+
+      {/* Advanced Filter Modal */}
+      <Modal
+        isOpen={isAdvancedFilterOpen}
+        onClose={() => { setIsAdvancedFilterOpen(false); setAdvancedFilterError(null); }}
+        title="Advanced Filter (JS Expression)"
+      >
+        <div style={{ display: 'grid', gap: '1rem' }}>
+          <div style={{
+            padding: '0.75rem',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid rgba(255,85,99,0.35)',
+            background: 'rgba(255,85,99,0.12)',
+            color: '#ff9aa3',
+            fontSize: '0.88rem',
+          }}>
+            This mode executes raw JavaScript in your browser. Use only trusted expressions.
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label htmlFor="hc_advanced_filter_expression">Expression (runs against each health row)</label>
+            <textarea
+              id="hc_advanced_filter_expression"
+              value={advancedFilterDraft}
+              onChange={(e) => setAdvancedFilterDraft(e.target.value)}
+              placeholder={`device.extra_data?.flag1 == 1\nhealthState === 'failure' && !lastSuccess\ndevice.status === 'deployed' && healthState !== 'success'`}
+              rows={5}
+              style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
+            />
+            <small>
+              Examples: <code>device.status === 'deployed'</code>, <code>healthState === 'failure'</code>, <code>device.account?.country === 'US'</code>
+            </small>
+          </div>
+
+          {advancedFilterError && (
+            <div style={{
+              padding: '0.65rem 0.75rem',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid rgba(255,85,99,0.35)',
+              background: 'rgba(255,85,99,0.12)',
+              color: '#ff9aa3',
+              fontSize: '0.88rem',
+            }}>
+              {advancedFilterError}
+            </div>
+          )}
+
+          <div style={{
+            padding: '0.75rem',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            background: 'rgba(0,0,0,0.22)',
+            fontSize: '0.82rem',
+            color: '#9aa3ad',
+          }}>
+            Available fields: <code>device</code> (full device object), <code>healthState</code> (<code>'success'</code> | <code>'failure'</code> | <code>'unknown'</code>),
+            {' '}<code>lastLog</code>, <code>lastSuccess</code>, <code>lastAssignment</code> (CrawlerLog objects with <code>log_ts</code>, <code>log_type</code>, <code>reason</code>).
+            <br />
+            Device sub-fields: <code>device.id</code>, <code>device.status</code>, <code>device.device_type</code>, <code>device.device_model</code>,
+            {' '}<code>device.static_ip</code>, <code>device.account</code>, <code>device.extra_data</code>.
+          </div>
+
+          <div className="form-actions">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => { setIsAdvancedFilterOpen(false); setAdvancedFilterError(null); }}
+            >
+              Cancel
+            </button>
+            {advancedFilterEnabled && (
+              <button
+                type="button"
+                className="btn-action"
+                style={{ borderColor: '#ffb347', color: '#ffb347', background: 'rgba(255,179,71,0.15)' }}
+                onClick={disableAdvancedFilter}
+              >
+                Disable Filter
+              </button>
+            )}
+            <button type="button" className="btn-primary" onClick={applyAdvancedFilter}>
+              Apply Filter
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {logsError && (
         <div style={{
