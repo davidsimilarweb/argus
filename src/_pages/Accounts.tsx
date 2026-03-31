@@ -1,8 +1,10 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { accountApi, type Account } from '../lib/api';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { accountApi, getDeviceSlot, type Account } from '../lib/api';
 import Modal from '../components/Modal';
 import { useToast } from '../hooks/useToast';
 import { useSettings } from '../contexts/SettingsContext';
@@ -15,12 +17,12 @@ export default function Accounts() {
   const [searchQuery, setSearchQuery] = useState('');
   const [countryFilter, setCountryFilter] = useState<string>('all');
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { showToast, ToastContainer } = useToast();
   const { allowedCountries } = useSettings();
 
-  const accountIdFromUrl = searchParams.get('account');
+  const accountIdFromUrl = searchParams?.get('account') ?? null;
 
   // Fetch all accounts
   const { data: accounts = [], isLoading, error } = useQuery({
@@ -133,10 +135,10 @@ export default function Accounts() {
         setIsDetailsOpen(true);
       } else {
         showToast(`Account "${accountIdFromUrl}" not found`, 'error');
-        navigate('/accounts', { replace: true });
+        router.replace('/accounts');
       }
     }
-  }, [accountIdFromUrl, accounts, navigate, showToast]);
+  }, [accountIdFromUrl, accounts, router, showToast]);
 
   // Get unique countries for the filter dropdown with counts
   const countryCounts = accounts.reduce((acc, account) => {
@@ -349,7 +351,7 @@ export default function Accounts() {
                           cursor: 'pointer',
                           transition: 'all 0.2s',
                         }}
-                        onClick={() => navigate(`/devices?device=${device.id}`)}
+                        onClick={() => router.push(`/devices?device=${device.id}`)}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.borderColor = 'var(--accent)';
                           e.currentTarget.style.background = 'rgba(0,255,159,0.05)';
@@ -360,7 +362,14 @@ export default function Accounts() {
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 600 }}>{device.id}</span>
+                          <span style={{ fontWeight: 600 }}>
+                            {getDeviceSlot(device) !== null ? (
+                              <>
+                                #{getDeviceSlot(device)}
+                                <span style={{ fontSize: '0.78rem', fontWeight: 400, color: '#888', marginLeft: '0.4rem' }}>{device.id}</span>
+                              </>
+                            ) : device.id}
+                          </span>
                           <span className={`status-badge status-${device.status}`} style={{ fontSize: '0.8rem' }}>
                             {device.status}
                           </span>

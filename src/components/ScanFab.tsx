@@ -1,19 +1,20 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+'use client';
+
+import { useRouter, usePathname } from 'next/navigation';
 import './ScanFab.css';
 
 export default function ScanFab() {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const router = useRouter();
+  const pathname = usePathname();
 
-  // Don't show the FAB on the scan page itself
-  if (location.pathname === '/scan') {
+  if (pathname === '/scan') {
     return null;
   }
 
   return (
     <button
       className="scan-fab"
-      onClick={() => navigate('/scan')}
+      onClick={() => router.push('/scan')}
       aria-label="Scan QR Code"
       title="Scan QR Code"
     >

@@ -1,46 +1,29 @@
 import axios from 'axios';
 import type { AxiosResponse } from 'axios';
 
-// API configuration for the new Argus backend
-// Uses relative URL to go through the proxy (avoids CORS issues)
-const API_BASE_URL = '/argus';
-
-// Get the auth token from environment only (.env / Vite env injection)
-const getAuthToken = (): string => {
-  return import.meta.env.VITE_ARGUS_TOKEN || '';
-};
-
+// Requests go through Next.js API routes (server-side proxy injects auth token)
 export const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: '/api/argus',
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
 // Separate client for internal crawler endpoints
-const internalApi = axios.create({
-  baseURL: '/internal',
+export const internalApi = axios.create({
+  baseURL: '/api/internal',
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Add auth header interceptor
-api.interceptors.request.use((config) => {
-  const token = getAuthToken();
-  if (token) {
-    config.headers['X-Token'] = token;
-  }
-  return config;
-});
-
-internalApi.interceptors.request.use((config) => {
-  const token = getAuthToken();
-  if (token) {
-    config.headers['X-Token'] = token;
-  }
-  return config;
-});
+// Called by AxiosEnvSync whenever the user switches environment.
+// Sets x-argus-env on every outgoing request so the proxy route picks the right target.
+export function setApiEnvHeader(env: 'production' | 'staging') {
+  const value = env === 'staging' ? 'staging' : 'production';
+  api.defaults.headers.common['x-argus-env'] = value;
+  internalApi.defaults.headers.common['x-argus-env'] = value;
+}
 
 // Enums matching the backend
 export type DeviceType = 'iPhone' | 'iPad';
@@ -56,6 +39,13 @@ export type ChangeType =
 
 // Metadata type - flexible JSON object for extensibility
 export type DeviceMetadata = Record<string, unknown>;
+
+// Extracts the physical slot number from extra_data.slot (set by set_device_slots.py).
+// Returns null when the slot has not yet been assigned.
+export function getDeviceSlot(device: { extra_data?: DeviceMetadata | null }): number | null {
+  const slot = device.extra_data?.slot;
+  return typeof slot === 'number' ? slot : null;
+}
 
 // Device types matching the new API
 export interface Device {
@@ -114,6 +104,36 @@ export interface HistoryEntry {
 export interface DeviceHistory {
   id: string;
   history: HistoryEntry[];
+}
+
+// Aggregated stats from /internal/stats
+export interface StatsDayEntry {
+  date: string; // 'YYYY-MM-DD'
+  num_started: number;
+  num_success: number;
+  num_failure: number;
+  num_doesnt_exist: number;
+  failure_rate: string; // e.g. '24%'
+}
+
+export interface StatsCountryDayEntry {
+  date: string;
+  count: number; // success count for that country+day
+}
+
+export interface StatsResponse {
+  today: StatsDayEntry & {
+    last_crawl_ts: string;
+    num_total_per_country: Record<string, Omit<StatsDayEntry, 'date'>>;
+    days: Array<{ date: string; num_started: number; num_success: number; num_failure: number }>;
+  };
+  num_started_all_time: number;
+  num_total_all_time: number;
+  num_failure_all_time: number;
+  num_doesnt_exist_all_time: number;
+  failure_rate_all_time: string;
+  agg_daily: StatsDayEntry[];
+  agg_daily_country: Record<string, StatsCountryDayEntry[]>;
 }
 
 // Health check / crawler logs
@@ -213,6 +233,10 @@ export const deviceApi = {
         ...(params?.days !== undefined ? { days: params.days } : {}),
         ...(params?.limit !== undefined ? { limit: params.limit } : {}),
       },
+    }),
+  getStats: (params?: { days?: number }) =>
+    internalApi.get<StatsResponse>('/stats', {
+      params: { ...(params?.days !== undefined ? { days: params.days } : {}) },
     }),
   create: async (data: CreateDeviceRequest) => {
     const res = await api.post<any>('/devices', data);

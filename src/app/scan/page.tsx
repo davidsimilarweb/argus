@@ -1,10 +1,12 @@
+'use client';
+
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { Html5Qrcode } from 'html5-qrcode';
-import { useToast } from '../hooks/useToast';
+import { useToast } from '../../hooks/useToast';
 
 export default function Scan() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { showToast, ToastContainer } = useToast();
   const [isScanning, setIsScanning] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
@@ -18,7 +20,6 @@ export default function Scan() {
     hasInitialized.current = true;
 
     const startScanner = async () => {
-      // Check if camera API is available (requires HTTPS on iOS)
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         console.error('Camera API not available - likely requires HTTPS');
         setHasPermission(false);
@@ -28,55 +29,45 @@ export default function Scan() {
       }
 
       try {
-        // Request camera permission explicitly first (helps with Safari/iOS)
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'environment' }
         });
-        // Stop the test stream immediately
         stream.getTracks().forEach(track => track.stop());
 
-        // Small delay to ensure DOM is ready
         await new Promise(resolve => setTimeout(resolve, 200));
 
         const scanner = new Html5Qrcode('qr-reader');
         scannerRef.current = scanner;
 
-        // Get available cameras
         const devices = await Html5Qrcode.getCameras();
 
         if (devices && devices.length > 0) {
-          // Try to find back camera (last camera is usually back on mobile)
           const backCamera = devices.length > 1 ? devices[devices.length - 1] : devices[0];
 
           await scanner.start(
-            backCamera.id, // Use specific camera ID instead of constraint
+            backCamera.id,
             {
               fps: 10,
               qrbox: { width: 250, height: 250 },
             },
             (decodedText) => {
-              // Successfully scanned a QR code
               console.log('Scanned:', decodedText);
 
-              // Stop scanning if it's running
               if (scanner.isScanning) {
                 scanner.stop().then(() => {
                   setIsScanning(false);
-                  // Navigate to device with the scanned ID
-                  navigate(`/devices?device=${decodedText}`);
+                  router.push(`/devices?device=${decodedText}`);
                 }).catch((err) => {
                   console.error('Error stopping scanner:', err);
-                  // Navigate anyway
-                  navigate(`/devices?device=${decodedText}`);
+                  router.push(`/devices?device=${decodedText}`);
                 });
               } else {
-                // Already stopped, just navigate
                 setIsScanning(false);
-                navigate(`/devices?device=${decodedText}`);
+                router.push(`/devices?device=${decodedText}`);
               }
             },
             (_errorMessage) => {
-              // Scan error (e.g., no QR code in view) - this is normal, ignore
+              // Scan error (no QR code in view) - normal, ignore
             }
           );
 
@@ -90,7 +81,6 @@ export default function Scan() {
         setHasPermission(false);
         setShowManualEntry(true);
 
-        // More helpful error message
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
           showToast('Camera permission denied. Use manual entry below.', 'error');
         } else if (err.name === 'NotFoundError') {
@@ -103,7 +93,6 @@ export default function Scan() {
 
     startScanner();
 
-    // Cleanup on unmount
     return () => {
       if (scannerRef.current && scannerRef.current.isScanning) {
         scannerRef.current.stop().catch((err) => {
@@ -111,19 +100,19 @@ export default function Scan() {
         });
       }
     };
-  }, []); // Empty dependency array - only run once on mount
+  }, []);
 
   const handleCancel = () => {
     if (scannerRef.current && scannerRef.current.isScanning) {
       scannerRef.current.stop().then(() => {
         setIsScanning(false);
-        navigate('/devices');
+        router.push('/devices');
       }).catch((err) => {
         console.error('Error stopping scanner:', err);
-        navigate('/devices');
+        router.push('/devices');
       });
     } else {
-      navigate('/devices');
+      router.push('/devices');
     }
   };
 
@@ -136,7 +125,6 @@ export default function Scan() {
         flexDirection: 'column',
         background: 'var(--background)',
       }}>
-        {/* Header */}
         <div style={{
           padding: '1rem',
           borderBottom: 'var(--border)',
@@ -151,7 +139,6 @@ export default function Scan() {
           </button>
         </div>
 
-        {/* Scanner Area */}
         <div style={{
           flex: 1,
           display: 'flex',
@@ -193,7 +180,6 @@ export default function Scan() {
             </div>
           )}
 
-          {/* QR Code Reader */}
           <div style={{
             width: '100%',
             maxWidth: '500px',
@@ -227,7 +213,6 @@ export default function Scan() {
             </div>
           )}
 
-          {/* Manual Entry Fallback */}
           {showManualEntry && (
             <div style={{
               width: '100%',
@@ -246,7 +231,7 @@ export default function Scan() {
               <form onSubmit={(e) => {
                 e.preventDefault();
                 if (manualEntry.trim()) {
-                  navigate(`/devices?device=${manualEntry.trim()}`);
+                  router.push(`/devices?device=${manualEntry.trim()}`);
                 }
               }}>
                 <input

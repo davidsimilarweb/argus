@@ -1,7 +1,9 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { deviceApi, accountApi, type Device, type DeviceType, type DeviceStatus } from '../lib/api';
 import { compileDeviceExpression } from '../lib/deviceExpressionFilter';
 import Modal from '../components/Modal';
@@ -28,8 +30,8 @@ export default function Devices() {
   const [advancedFilterError, setAdvancedFilterError] = useState<string | null>(null);
   const [advancedFilterPredicate, setAdvancedFilterPredicate] = useState<((device: Device) => boolean) | null>(null);
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { showToast, ToastContainer } = useToast();
   const { availableModels, baseIp } = useSettings();
 
@@ -51,8 +53,7 @@ export default function Devices() {
     return fullIp; // IP doesn't match base, return full value
   };
 
-  // Check if we should open a specific device from URL params
-  const deviceIdFromUrl = searchParams.get('device');
+  const deviceIdFromUrl = searchParams?.get('device') ?? null;
 
   // Fetch all devices
   const { data: devices = [], isLoading, error } = useQuery({
@@ -149,9 +150,10 @@ export default function Devices() {
     const formData = new FormData(e.currentTarget);
     const ipSuffix = (formData.get('static_ip_suffix') as string) || '';
     const extraDataStr = (formData.get('extra_data') as string) || '';
+    const hostValue = (formData.get('host') as string) || '';
     
     // Parse extra_data JSON if provided
-    let extra_data = null;
+    let extra_data: Record<string, unknown> | null = null;
     if (extraDataStr.trim()) {
       try {
         extra_data = JSON.parse(extraDataStr);
@@ -159,6 +161,11 @@ export default function Devices() {
         showToast('Invalid JSON in extra_data field', 'error');
         return;
       }
+    }
+
+    // Merge host into extra_data
+    if (hostValue.trim()) {
+      extra_data = { ...(extra_data ?? {}), host: hostValue.trim() };
     }
     
     const data = {
@@ -181,9 +188,10 @@ export default function Devices() {
     const formData = new FormData(e.currentTarget);
     const ipSuffix = (formData.get('static_ip_suffix') as string) || '';
     const extraDataStr = (formData.get('extra_data') as string) || '';
+    const hostValue = (formData.get('host') as string) || '';
     
     // Parse extra_data JSON if provided
-    let extra_data = null;
+    let extra_data: Record<string, unknown> | null = null;
     if (extraDataStr.trim()) {
       try {
         extra_data = JSON.parse(extraDataStr);
@@ -191,6 +199,15 @@ export default function Devices() {
         showToast('Invalid JSON in extra_data field', 'error');
         return;
       }
+    }
+
+    // Merge host into extra_data (overwrite existing host key)
+    if (hostValue.trim()) {
+      extra_data = { ...(extra_data ?? {}), host: hostValue.trim() };
+    } else if (extra_data && 'host' in extra_data) {
+      // Explicitly clear host if the field was emptied
+      const { host: _removed, ...rest } = extra_data;
+      extra_data = Object.keys(rest).length > 0 ? rest : null;
     }
     
     const data = {
@@ -257,10 +274,10 @@ export default function Devices() {
         setIsDetailsOpen(true);
       } else {
         showToast(`Device with ID "${deviceIdFromUrl}" not found`, 'error');
-        navigate('/devices', { replace: true });
+        router.replace('/devices');
       }
     }
-  }, [deviceIdFromUrl, devices, navigate, showToast]);
+  }, [deviceIdFromUrl, devices, router, showToast]);
 
   const normalizedSearchQuery = searchQuery.toLowerCase();
 
@@ -576,7 +593,8 @@ export default function Devices() {
               fontSize: '0.82rem',
               color: '#9aa3ad'
             }}>
-              Available fields include: <code>id</code>, <code>status</code>, <code>device_type</code>, <code>device_model</code>, <code>static_ip</code>, <code>account</code>, <code>extra_data</code>, <code>created_at</code>, <code>updated_at</code>.
+              Available fields include: <code>id</code>, <code>status</code>, <code>device_type</code>, <code>device_model</code>, <code>ios_version</code>, <code>static_ip</code>, <code>account</code>, <code>notes</code>, <code>extra_data</code>, <code>created_at</code>, <code>updated_at</code>.
+              Nullable fields like <code>ios_version</code> or <code>device_model</code> need optional chaining (e.g. <code>ios_version?.startsWith("15")</code>).
             </div>
 
             <div className="form-actions">
@@ -684,6 +702,12 @@ export default function Devices() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="host">Host</label>
+              <input type="text" id="host" name="host" placeholder="mac-lab-1" />
+              <small>Mac or machine this device is connected to (stored in extra_data.host)</small>
             </div>
 
             <div className="form-group">
@@ -818,11 +842,15 @@ export default function Devices() {
                         {(deviceDetail?.account || selectedDevice.account) ? (
                           <span
                             style={{ color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline' }}
-                            onClick={() => navigate(`/accounts?account=${deviceDetail?.account?.id || selectedDevice.account?.id}`)}
+                            onClick={() => router.push(`/accounts?account=${deviceDetail?.account?.id || selectedDevice.account?.id}`)}
                           >
                             {deviceDetail?.account?.id || selectedDevice.account?.id}
                           </span>
                         ) : '-'}
+                      </div>
+                      <div className="device-meta">
+                        <strong>Host:</strong>&nbsp;
+                        {((deviceDetail?.extra_data ?? selectedDevice.extra_data) as Record<string, unknown> | null)?.host as string | undefined || '-'}
                       </div>
                       <div className="device-meta"><strong>Notes:</strong>&nbsp;{deviceDetail?.notes || selectedDevice.notes || '-'}</div>
                       <div className="device-meta"><strong>Created:</strong>&nbsp;{new Date(selectedDevice.created_at).toLocaleString()}</div>
@@ -1123,6 +1151,18 @@ export default function Devices() {
                   ? `Full IP will be: ${baseIp}.[your input]` 
                   : 'Configure base IP in Settings for faster entry'}
               </small>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="host">Host</label>
+              <input
+                type="text"
+                id="host"
+                name="host"
+                placeholder="mac-lab-1"
+                defaultValue={(selectedDevice?.extra_data as Record<string, unknown> | null)?.host as string | undefined || ''}
+              />
+              <small>Mac or machine this device is connected to (stored in extra_data.host)</small>
             </div>
 
             <div className="form-group">

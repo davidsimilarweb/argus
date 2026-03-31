@@ -1,6 +1,8 @@
+'use client';
+
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { deviceApi, type Device, type CrawlerLog, type DeviceCrawlerLogs } from '../lib/api';
+import { deviceApi, getDeviceSlot, type Device, type CrawlerLog, type DeviceCrawlerLogs } from '../lib/api';
 import { compileExpression } from '../lib/expressionFilter';
 import Modal from '../components/Modal';
 import { useToast } from '../hooks/useToast';
@@ -291,11 +293,14 @@ export default function HealthChecks() {
         const model = (row.device.device_model || '').toLowerCase();
         const ip = (row.device.static_ip || '').toLowerCase();
         const country = (row.device.account?.country || '').toLowerCase();
+        const slot = getDeviceSlot(row.device);
+        const slotStr = slot !== null ? String(slot) : '';
         if (
           !id.includes(normalizedSearch) &&
           !model.includes(normalizedSearch) &&
           !ip.includes(normalizedSearch) &&
-          !country.includes(normalizedSearch)
+          !country.includes(normalizedSearch) &&
+          !slotStr.includes(normalizedSearch)
         )
           return false;
       }
@@ -654,7 +659,14 @@ export default function HealthChecks() {
             <tbody>
               {filteredRows.map((row) => (
                 <tr key={row.device.id} style={{ ...renderRowStyle(row.healthState) }}>
-                  <td style={{ padding: '0.75rem', fontWeight: 600 }}>{row.device.id}</td>
+                  <td style={{ padding: '0.75rem', fontWeight: 600 }}>
+                    {getDeviceSlot(row.device) !== null ? (
+                      <>
+                        <div>#{getDeviceSlot(row.device)}</div>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 400, color: '#888', marginTop: '0.1rem' }}>{row.device.id}</div>
+                      </>
+                    ) : row.device.id}
+                  </td>
                   <td style={{ padding: '0.75rem', color: '#ccc' }}>{row.device.account?.country || '—'}</td>
                   <td style={{ padding: '0.75rem', color: '#fff' }}>
                     {row.lastLog?.log_type ? (

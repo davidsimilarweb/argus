@@ -1,11 +1,13 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { deviceApi, accountApi, type DeviceCrawlerLogs } from '../lib/api';
+import { deviceApi, accountApi, type DeviceCrawlerLogs, type StatsResponse } from '../lib/api';
 import { useSettings } from '../contexts/SettingsContext';
 
 const HEALTH_LOG_LIMIT = 12;
 // Server clock appears to be ~1h behind; adjust timestamps forward to avoid undercounting fresh failures.
 const SERVER_CLOCK_OFFSET_MS = 60 * 60 * 1000;
+
+const TREND_DAYS = 7;
 
 export default function Dashboard() {
   const { healthGraceMinutes } = useSettings();
@@ -46,6 +48,41 @@ export default function Dashboard() {
       return data;
     },
   });
+
+  const { data: statsData } = useQuery<StatsResponse>({
+    queryKey: ['stats', TREND_DAYS],
+    queryFn: async () => {
+      const res = await deviceApi.getStats({ days: TREND_DAYS });
+      return res.data;
+    },
+    staleTime: 5 * 60_000, // stats don't change every second
+  });
+
+  const trendData = useMemo(() => {
+    if (!statsData) return { bars: [], maxCount: 1, rolling24h: 0 };
+
+    // agg_daily is newest-first; take the last TREND_DAYS entries and reverse to oldest-first
+    const days = [...statsData.agg_daily]
+      .slice(0, TREND_DAYS)
+      .reverse();
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    const bars = days.map((d) => ({
+      date: d.date,
+      label: d.date === todayStr ? 'Today' : new Date(d.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short' }),
+      count: d.num_success,
+      failures: d.num_failure,
+      failureRate: d.failure_rate,
+    }));
+
+    const maxCount = Math.max(1, ...bars.map((b) => b.count));
+
+    // 24h rolling: today's num_success from statsData.today
+    const rolling24h = statsData.today.num_success;
+
+    return { bars, maxCount, rolling24h };
+  }, [statsData]);
 
   const healthSnapshot = useMemo(() => {
     const graceMs = Math.max(0, healthGraceMinutes) * 60_000;
@@ -142,7 +179,7 @@ export default function Dashboard() {
     const [topReason, topReasonCount] =
       Array.from(failureReasonCounts.entries()).sort((a, b) => b[1] - a[1])[0] ?? [null, 0];
 
-    if (import.meta.env.DEV) {
+    if (process.env.NODE_ENV === 'development') {
       console.log('[Health snapshot]', {
         graceMinutes: healthGraceMinutes,
         totals: { successes, failures },
@@ -241,6 +278,11 @@ export default function Dashboard() {
             </p>
             <div className="stat-meta">Devices with recent failures</div>
           </div>
+          <div className="stat-card status-ready">
+            <h3>Successes (24h)</h3>
+            <p className="stat-number">{trendData.rolling24h.toLocaleString()}</p>
+            <div className="stat-meta">All checks across all devices</div>
+          </div>
           <div className="stat-card">
             <h3>Top failure reason</h3>
             <p className="stat-number" style={{ fontSize: '1.8rem' }}>
@@ -257,6 +299,69 @@ export default function Dashboard() {
                   ? `${healthSnapshot.topReasonCount} device${healthSnapshot.topReasonCount === 1 ? '' : 's'}`
                   : 'No failure reasons yet'}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Successes per day bar chart */}
+      <div style={{ marginTop: '2rem' }}>
+        <div className="page-header" style={{ marginBottom: '0.8rem' }}>
+          <h3 style={{ margin: 0 }}>Successes per day</h3>
+          <span style={{ color: '#888', fontSize: '0.9rem' }}>Last {TREND_DAYS} days · all devices</span>
+        </div>
+        <div
+          className="stat-card"
+          style={{ padding: '1.25rem 1.5rem' }}
+        >
+          {/* Bar chart */}
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '120px' }}>
+            {trendData.bars.map(({ date, label, count, failures, failureRate }) => {
+              const heightPct = count / trendData.maxCount;
+              const isToday = label === 'Today';
+              return (
+                <div
+                  key={date}
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', height: '100%', justifyContent: 'flex-end' }}
+                  title={`${label}: ${count.toLocaleString()} successes, ${failures.toLocaleString()} failures (${failureRate} failure rate)`}
+                >
+                  {/* Count label above bar */}
+                  <span style={{ fontSize: '0.72rem', color: isToday ? 'rgba(0,255,159,0.8)' : '#666', lineHeight: 1 }}>
+                    {count > 0 ? count.toLocaleString() : ''}
+                  </span>
+                  {/* Bar */}
+                  <div
+                    style={{
+                      width: '100%',
+                      height: `${Math.max(2, heightPct * 88)}px`,
+                      borderRadius: '4px 4px 0 0',
+                      background: isToday
+                        ? 'rgba(0,255,159,0.6)'
+                        : 'rgba(0,255,159,0.25)',
+                      border: isToday
+                        ? '1px solid rgba(0,255,159,0.4)'
+                        : '1px solid rgba(0,255,159,0.12)',
+                      transition: 'height 0.3s ease',
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          {/* Day labels */}
+          <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+            {trendData.bars.map(({ date, label }) => (
+              <div
+                key={date}
+                style={{
+                  flex: 1,
+                  textAlign: 'center',
+                  fontSize: '0.75rem',
+                  color: label === 'Today' ? 'rgba(0,255,159,0.8)' : '#666',
+                }}
+              >
+                {label}
+              </div>
+            ))}
           </div>
         </div>
       </div>

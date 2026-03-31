@@ -1,16 +1,26 @@
+'use client';
+
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
+
+export type ApiEnv = 'production' | 'staging';
 
 interface SettingsContextType {
   availableModels: string[];
   baseIp: string;
   allowedCountries: string[];
   healthGraceMinutes: number;
+  healthWindowHours: number;
+  healthDecayHours: number;
+  apiEnv: ApiEnv;
   isLoading: boolean;
   setAvailableModels: (models: string[]) => void;
   setBaseIp: (ip: string) => void;
   setAllowedCountries: (countries: string[]) => void;
   setHealthGraceMinutes: (minutes: number) => void;
+  setHealthWindowHours: (hours: number) => void;
+  setHealthDecayHours: (hours: number) => void;
+  setApiEnv: (env: ApiEnv) => void;
 }
 
 const defaultModels = [
@@ -26,6 +36,9 @@ const STORAGE_KEYS = {
   BASE_IP: 'argus_base_ip',
   ALLOWED_COUNTRIES: 'argus_allowed_countries',
   HEALTH_GRACE_MINUTES: 'argus_health_grace_minutes',
+  HEALTH_WINDOW_HOURS: 'argus_health_window_hours',
+  HEALTH_DECAY_HOURS: 'argus_health_decay_hours',
+  API_ENV: 'argus_api_env',
 };
 
 const defaultBaseIp = '192.168.0';
@@ -54,6 +67,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [baseIp, setBaseIpState] = useState<string>(defaultBaseIp);
   const [allowedCountries, setAllowedCountriesState] = useState<string[]>(defaultAllowedCountries);
   const [healthGraceMinutes, setHealthGraceMinutesState] = useState<number>(20);
+  const [healthWindowHours, setHealthWindowHoursState] = useState<number>(12);
+  const [healthDecayHours, setHealthDecayHoursState] = useState<number>(12);
+  const [apiEnv, setApiEnvState] = useState<ApiEnv>('production');
   const [isLoading, setIsLoading] = useState(true);
 
   // Load settings from localStorage on mount
@@ -80,6 +96,27 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         if (!Number.isNaN(parsed) && parsed >= 0) {
           setHealthGraceMinutesState(parsed);
         }
+      }
+
+      const storedWindow = localStorage.getItem(STORAGE_KEYS.HEALTH_WINDOW_HOURS);
+      if (storedWindow) {
+        const parsed = parseInt(storedWindow, 10);
+        if (!Number.isNaN(parsed) && parsed >= 1) {
+          setHealthWindowHoursState(parsed);
+        }
+      }
+
+      const storedDecay = localStorage.getItem(STORAGE_KEYS.HEALTH_DECAY_HOURS);
+      if (storedDecay) {
+        const parsed = parseInt(storedDecay, 10);
+        if (!Number.isNaN(parsed) && parsed >= 1) {
+          setHealthDecayHoursState(parsed);
+        }
+      }
+
+      const storedApiEnv = localStorage.getItem(STORAGE_KEYS.API_ENV);
+      if (storedApiEnv === 'staging' || storedApiEnv === 'production') {
+        setApiEnvState(storedApiEnv);
       }
     } catch (error) {
       console.error('Failed to load settings from localStorage:', error);
@@ -109,6 +146,23 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEYS.HEALTH_GRACE_MINUTES, String(safe));
   };
 
+  const setHealthWindowHours = (hours: number) => {
+    const safe = Math.max(1, Math.min(168, Math.round(hours)));
+    setHealthWindowHoursState(safe);
+    localStorage.setItem(STORAGE_KEYS.HEALTH_WINDOW_HOURS, String(safe));
+  };
+
+  const setHealthDecayHours = (hours: number) => {
+    const safe = Math.max(1, Math.min(48, Math.round(hours)));
+    setHealthDecayHoursState(safe);
+    localStorage.setItem(STORAGE_KEYS.HEALTH_DECAY_HOURS, String(safe));
+  };
+
+  const setApiEnv = (env: ApiEnv) => {
+    setApiEnvState(env);
+    localStorage.setItem(STORAGE_KEYS.API_ENV, env);
+  };
+
   return (
     <SettingsContext.Provider
       value={{
@@ -116,11 +170,17 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         baseIp,
         allowedCountries,
         healthGraceMinutes,
+        healthWindowHours,
+        healthDecayHours,
+        apiEnv,
         isLoading,
         setAvailableModels,
         setBaseIp,
         setAllowedCountries,
         setHealthGraceMinutes,
+        setHealthWindowHours,
+        setHealthDecayHours,
+        setApiEnv,
       }}
     >
       {children}
